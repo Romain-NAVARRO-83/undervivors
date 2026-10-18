@@ -6,17 +6,27 @@ extends CharacterBody2D
 
 signal died(survivor: Survivor)
 
-const SPEED := 150.0
 const WANDER_SPEED := 60.0
 const XP_PER_LEVEL := 100
+## Valeur maximale affichée pour les stats (barres du panneau).
+const STAT_MAX := 20
+const HP_PER_POINT := 10
 
+## Statistiques (GDD 5.1). Vitesse, précision et force vont de 1 à STAT_MAX.
 @export var max_hp: int = 100
 var hp: int = 100
 var xp: int = 0
 var level: int = 1
+var speed_stat: int = 5
+var accuracy: int = 5
+var strength: int = 5
+## Points gagnés en montant de niveau, à attribuer dans le panneau de gestion.
+var stat_points: int = 0
+
 var first_name: String = ""
 var last_name: String = ""
 var is_hero: bool = false
+var appearance: SurvivorAppearance
 var weapon: WeaponData
 var selected: bool = false:
 	set(value):
@@ -50,9 +60,56 @@ func _ready() -> void:
 		last_name = NameGenerator.generate_part(_rng)["text"]
 	if weapon == null:
 		weapon = load("res://data/weapons/slingshot.tres")
+	if appearance == null:
+		appearance = SurvivorAppearance.random(_rng)
+	speed_stat = _rng.randi_range(3, 8)
+	accuracy = _rng.randi_range(3, 8)
+	strength = _rng.randi_range(3, 8)
+	if is_hero:
+		speed_stat += 2
+		accuracy += 2
+		strength += 2
 	hp = max_hp
-	_body_color = Color(0.95, 0.75, 0.2) if is_hero else Color.from_hsv(_rng.randf_range(0.5, 0.7), 0.5, 0.85)
+	_body_color = appearance.shirt_color
 	_pick_wander_target()
+
+
+## Vitesse de déplacement en px/s : 150 pour une stat de 5.
+func move_speed() -> float:
+	return 110.0 + speed_stat * 8.0
+
+
+## Multiplicateur de dispersion : 1 pour une précision de 5, plus serré au-delà.
+func spread_factor() -> float:
+	return clampf(1.3 - accuracy * 0.06, 0.2, 1.5)
+
+
+## XP accumulée depuis le dernier niveau, et XP nécessaire pour le suivant.
+func xp_in_level() -> int:
+	return xp - (level - 1) * XP_PER_LEVEL
+
+
+## Dépense un point de stat. `stat` : "pv_max", "vitesse", "precision" ou "force".
+func spend_point(stat: String) -> bool:
+	if stat_points <= 0:
+		return false
+	match stat:
+		"pv_max":
+			max_hp += HP_PER_POINT
+			hp += HP_PER_POINT
+		"vitesse":
+			if speed_stat >= STAT_MAX: return false
+			speed_stat += 1
+		"precision":
+			if accuracy >= STAT_MAX: return false
+			accuracy += 1
+		"force":
+			if strength >= STAT_MAX: return false
+			strength += 1
+		_:
+			return false
+	stat_points -= 1
+	return true
 
 
 func full_name() -> String:
@@ -71,11 +128,12 @@ func _physics_process(delta: float) -> void:
 
 func _process_controlled() -> void:
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	velocity = input * SPEED
+	velocity = input * move_speed()
 	var to_mouse := get_global_mouse_position() - global_position
 	if to_mouse.length() > 1.0:
 		aim_dir = to_mouse.normalized()
-	if Input.is_action_pressed("shoot"):
+	# Pas de tir quand la souris survole l'interface (panneau, boutons).
+	if Input.is_action_pressed("shoot") and get_viewport().gui_get_hovered_control() == null:
 		try_shoot(aim_dir)
 
 
@@ -126,7 +184,8 @@ func try_shoot(dir: Vector2) -> void:
 		return
 	_cooldown = weapon.cooldown()
 	for i in weapon.bullets_per_shot:
-		var offset := deg_to_rad(_rng.randf_range(-weapon.spread_deg, weapon.spread_deg) * 0.5)
+		var spread := weapon.spread_deg * spread_factor()
+		var offset := deg_to_rad(_rng.randf_range(-spread, spread) * 0.5)
 		var p := Projectile.new()
 		p.velocity = dir.rotated(offset) * weapon.projectile_speed
 		p.damage = weapon.damage
@@ -147,8 +206,7 @@ func add_xp(amount: int) -> void:
 	xp += amount
 	while xp >= level * XP_PER_LEVEL:
 		level += 1
-		max_hp += 10
-		hp = max_hp
+		stat_points += 1  # le joueur choisit la stat (GDD 5.1)
 
 
 func take_damage(amount: float) -> void:
@@ -165,9 +223,11 @@ func _draw() -> void:
 	if selected:
 		draw_arc(Vector2.ZERO, 16.0, 0.0, TAU, 32, Color(1, 1, 1, 0.9), 2.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# Corps (placeholder)
+	# Corps (placeholder) : vêtement + tête issue de l'apparence
 	draw_circle(Vector2(0, -12), 9.0, _body_color)
-	draw_circle(Vector2(0, -24), 6.0, _body_color.lightened(0.3))
+	if is_hero:
+		draw_arc(Vector2(0, -12), 9.0, 0.0, TAU, 20, Color(0.95, 0.75, 0.2), 2.0)
+	SurvivorAppearance.draw_face(self, Vector2(0, -26), 7.0, appearance, false)
 	# Visée
 	draw_line(Vector2(0, -12), Vector2(0, -12) + aim_dir * 18.0, Color(0.2, 0.15, 0.1), 3.0)
 	# Barre de PV

@@ -20,6 +20,7 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 | Survivant suivant | Tab |
 | Choisir un survivant | 1 à 9, ou clic droit dessus |
 | Relâcher le contrôle | Échap |
+| Panneau des survivants | G, ou bouton en haut à droite |
 
 ## Contenu du prototype v0.1
 
@@ -29,6 +30,13 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Armes paramétrables : lance-pierre par défaut, fusil à pompe à ramasser au sud-ouest du village.
 - Cibles d'entraînement qui encaissent, se cassent, réapparaissent et rapportent de l'XP.
 - Mort définitive ; si tous meurent, un nouveau survivant apparaît au centre (pas encore d'ennemi qui attaque).
+
+## Ajouts v0.2
+
+- Apparence aléatoire par survivant (forme du visage, peau, coiffure, yeux, bouche, accessoires, vêtement), visible dans le monde et en vignette.
+- Stats : PV max, vitesse (agit sur le déplacement), précision (réduit la dispersion), force (pas encore utilisée), niveau.
+- Passage de niveau tous les 100 XP : 1 point à attribuer dans la stat de son choix.
+- Panneau de gestion : une tuile par survivant avec vignette, barres de stats, boutons « + » et arme. Clic sur une tuile = prendre le contrôle. Le jeu continue derrière.
 
 ## Structure
 
@@ -42,6 +50,8 @@ scripts/projectile.gd     projectile
 scripts/target_dummy.gd   cible d'entraînement (placeholder d'ennemi)
 scripts/weapon_pickup.gd  arme au sol
 scripts/iso_ground.gd     sol isométrique placeholder
+scripts/survivor_appearance.gd  apparence aléatoire et dessin du visage
+scripts/ui/               interface : panneau de gestion, tuiles, vignettes, styles
 data/weapons/*.tres       armes, modifiables dans l'inspecteur de Godot
 tests/run_tests.gd        tests automatisés
 ```

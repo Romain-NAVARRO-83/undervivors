@@ -8,6 +8,8 @@ const START_SURVIVORS := 4
 var world: Node2D
 var camera: Camera2D
 var hud_label: Label
+var hud_portrait: SurvivorPortrait
+var panel: ManagementPanel
 var survivors: Array[Survivor] = []
 var selected: Survivor = null
 
@@ -66,6 +68,7 @@ func _register_inputs() -> void:
 		"move_right": [KEY_D, KEY_RIGHT],
 		"next_survivor": [KEY_TAB],
 		"deselect": [KEY_ESCAPE],
+		"toggle_panel": [KEY_G],
 	}
 	for action in map:
 		if InputMap.has_action(action):
@@ -83,10 +86,15 @@ func _register_inputs() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("next_survivor"):
+	if event.is_action_pressed("toggle_panel"):
+		panel.toggle()
+	elif event.is_action_pressed("next_survivor"):
 		_select_next()
 	elif event.is_action_pressed("deselect"):
-		_select(null)
+		if panel.visible:
+			panel.visible = false
+		else:
+			_select(null)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		_select_under_mouse()
 	elif event is InputEventKey and event.pressed and not event.echo:
@@ -136,21 +144,42 @@ func _on_survivor_died(s: Survivor) -> void:
 func _process(_delta: float) -> void:
 	if is_instance_valid(selected):
 		camera.position = selected.global_position
+	panel.sync(survivors)
 	_update_hud()
 
 
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
-	var panel := PanelContainer.new()
-	panel.position = Vector2(12, 12)
+	var info := PanelContainer.new()
+	info.position = Vector2(12, 12)
+	info.add_theme_stylebox_override("panel", UIStyle.box(UIStyle.BG, UIStyle.BORDER, 10, 2, 10))
+	layer.add_child(info)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	info.add_child(row)
+	hud_portrait = SurvivorPortrait.new()
+	hud_portrait.custom_minimum_size = Vector2(64, 64)
+	row.add_child(hud_portrait)
+	hud_label = UIStyle.label("", 14)
+	row.add_child(hud_label)
+
+	var toggle := UIStyle.button("Survivants  [G]", 15)
+	toggle.anchor_left = 1.0
+	toggle.anchor_right = 1.0
+	toggle.offset_left = -170
+	toggle.offset_right = -12
+	toggle.offset_top = 12
+	toggle.offset_bottom = 48
+	layer.add_child(toggle)
+
+	panel = ManagementPanel.new()
+	panel.survivor_selected.connect(_select)
 	layer.add_child(panel)
-	hud_label = Label.new()
-	hud_label.add_theme_font_size_override("font_size", 14)
-	panel.add_child(hud_label)
+	toggle.pressed.connect(panel.toggle)
 
 	var help := Label.new()
-	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner   Échap : relâcher"
+	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : panneau des survivants\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner   Échap : relâcher"
 	help.add_theme_font_size_override("font_size", 13)
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.anchor_top = 1.0
@@ -164,15 +193,18 @@ func _update_hud() -> void:
 	var lines: PackedStringArray = []
 	if is_instance_valid(selected):
 		var w := selected.weapon
-		lines.append("%s%s" % [selected.full_name(), "  ★ HÉROS" if selected.is_hero else ""])
-		lines.append("PV %d/%d   Niveau %d   XP %d" % [selected.hp, selected.max_hp, selected.level, selected.xp])
-		lines.append("Arme : %s" % w.weapon_name)
-		lines.append("  Dégâts %.0f × %d   Cadence %.1f/s   Dispersion %.0f°   Élément %s" % [
-			w.damage, w.bullets_per_shot, w.fire_rate, w.spread_deg, WeaponData.element_name(w.element)])
+		hud_portrait.visible = true
+		hud_portrait.appearance = selected.appearance
+		hud_portrait.is_hero = selected.is_hero
+		lines.append("%s%s" % [selected.full_name(), "  ★" if selected.is_hero else ""])
+		var lvl := "PV %d/%d   Niveau %d" % [selected.hp, selected.max_hp, selected.level]
+		if selected.stat_points > 0:
+			lvl += "   (+%d à attribuer)" % selected.stat_points
+		lines.append(lvl)
+		lines.append("%s : %.0f × %d dégâts, %.1f tirs/s%s" % [
+			w.weapon_name, w.damage, w.bullets_per_shot, w.fire_rate,
+			"" if w.element == WeaponData.Element.AUCUN else ", " + WeaponData.element_name(w.element)])
 	else:
+		hud_portrait.visible = false
 		lines.append("Aucun survivant contrôlé")
-	lines.append("")
-	for i in survivors.size():
-		var s := survivors[i]
-		lines.append("%d. %s%s — PV %d" % [i + 1, s.full_name(), " ★" if s.is_hero else "", s.hp])
 	hud_label.text = "\n".join(lines)
