@@ -136,6 +136,7 @@ func _ready() -> void:
 	world.add_child(pickup)
 
 	respawn_chests()
+	_plant_trees()
 	setup_map_enemies()
 
 	camera = Camera2D.new()
@@ -455,6 +456,34 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(selected):
 		squad_bar.visible = false
 	_update_hud()
+
+
+## Arbres obstacles : lisière sur les bords hors mer, bosquets dispersés, en
+## gardant dégagés le camp, les points d'intérêt et les couloirs qui y mènent.
+func _plant_trees() -> void:
+	var field := TreeField.new()
+	field.world = world
+	var gap := Vector2(Terrain.RIDGE_X, Terrain.GAP_Y)
+	for n in resource_nodes:
+		field.keep_clear.append([n.global_position, n.radius + 70.0])
+		field.corridors.append([VILLAGE_CENTER, n.global_position])
+	for pos in CHEST_POSITIONS:
+		field.keep_clear.append([pos, 70.0])
+		field.corridors.append([VILLAGE_CENTER if pos.x < Terrain.RIDGE_X else gap, pos])
+	for camp in ENEMY_CAMPS:
+		field.keep_clear.append([camp[0], 110.0])
+		field.corridors.append([VILLAGE_CENTER if camp[0].x < Terrain.RIDGE_X else gap, camp[0]])
+	for pos in SPAWNER_POSITIONS:
+		field.keep_clear.append([pos, 170.0])
+	field.corridors.append([VILLAGE_CENTER, gap])
+	field.keep_clear.append([Vector2(-320, 260), 60.0])  # fusil au sol
+	# Arrivées des vagues et leur trajet vers le camp
+	for d in WaveManager.DIRECTIONS.values():
+		var spawn: Vector2 = VILLAGE_CENTER + d * WaveManager.SPAWN_DISTANCE
+		field.keep_clear.append([spawn, 170.0])
+		field.corridors.append([spawn, gap if spawn.x > Terrain.RIDGE_X else VILLAGE_CENTER])
+	add_child(field)
+	field.build()
 
 
 # --- Outils de debug (panneau F1) ------------------------------------------

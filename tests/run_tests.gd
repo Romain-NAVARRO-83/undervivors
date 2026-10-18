@@ -56,6 +56,16 @@ func _process(_delta: float) -> bool:
 		check(_worker.task_node == _main.resource_nodes[0], "survivant assigné à la mare")
 		_main.assign_survivor(_main.survivors[3], _main.resource_nodes[1])
 		check(_main.resource_nodes[1].resource_type == "nourriture", "les cocotiers donnent de la nourriture")
+		var trees: Array = _main.get_tree().get_nodes_in_group("trees")
+		check(trees.size() > 150, "%d arbres plantés" % trees.size())
+		var clear := true
+		for tr in trees:
+			if IsoGround.in_village(BuildManager.world_to_tile(tr.global_position)):
+				clear = false
+			for n in _main.resource_nodes:
+				if TreeField._dist_to_segment(tr.global_position, Vector2.ZERO, n.global_position) < 40.0:
+					clear = false
+		check(clear, "camp et couloirs vers les ressources dégagés")
 		_main.assign_survivor(_main.survivors[2], _main.resource_nodes[2])
 		check(_main.resource_nodes[2].resource_type == "bois", "la forêt donne du bois")
 	if _frames == 1500:

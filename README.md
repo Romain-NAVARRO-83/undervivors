@@ -160,6 +160,13 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Contenu redistribué hors de la place : mare, cocotiers, forêt, 5 coffres, 5 camps d'ennemis ; crête rocheuse repoussée vers l'est (x = 900), toujours un seul passage gardé par les deux générateurs ; tout un territoire à explorer derrière.
 - Vagues et caméra libre adaptées à la nouvelle taille.
 
+## Ajouts v0.18 : arbres
+
+- ~370 arbres non abattables (feuillus et conifères), placés sur la grille iso, qui bloquent survivants, monstres et tirs (petit tronc).
+- **Lisière** dense sur les deux bords nord de la carte ; pas d'arbres sur la plage ni dans la mer.
+- **Bosquets** dispersés sur l'herbe, en gardant dégagés : la place du camp, chaque point de récolte, coffre, camp, générateur, l'arrivée des vagues, et des **couloirs** entre le camp (ou le col) et chacun d'eux.
+- Placement reproductible (graine fixe), réglable dans scripts/tree_field.gd.
+
 ## Structure
 
 ```
@@ -173,6 +180,7 @@ scripts/mob.gd            monstre de base (sans dégâts pour l'instant)
 scripts/wave_manager.gd   vagues de monstres
 scripts/mob_spawner.gd    générateur de bots
 scripts/ridge.gd          crête rocheuse et bordure de carte
+scripts/tree_field.gd     arbres obstacles (lisière et bosquets)
 scripts/terrain.gd        relief et contournement par le passage
 scripts/buildings/        constructions : base, mur, tourelle, gestionnaire de pose
 scripts/ui/build_bar.gd   barre de construction
