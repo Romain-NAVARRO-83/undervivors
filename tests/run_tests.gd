@@ -14,6 +14,9 @@ var _cam_x := 0.0
 var _water_before := 0
 var _chest: LootChest
 var _pickups_before := 0
+var _wave: Array = []
+var _wave_dist := 0.0
+var _cleared := false
 
 
 func _init() -> void:
@@ -60,7 +63,7 @@ func _process(_delta: float) -> bool:
 		_main._select(m[2])
 		check(_main.selected == m[2] and m[0].following and not m[2].following, "changement de leader")
 		m[2].global_position += Vector2(200, 60)
-	if _frames == 1700:
+	if _frames == 1820:
 		var m: Array = _main.survivors
 		var ok := true
 		for i in [0, 1, 3]:
@@ -81,7 +84,7 @@ func _process(_delta: float) -> bool:
 		check(_main.squad.size() == 4, "composition conservée après relâchement")
 		_cam_x = _main.camera.position.x
 		Input.action_press("move_right")
-	if _frames == 1760:
+	if _frames == 1880:
 		Input.action_release("move_right")
 		check(_main.camera.position.x > _cam_x + 100.0, "caméra libre déplacée au clavier (%.0f px)" % (_main.camera.position.x - _cam_x))
 		check(not _main.survivors[2].selected, "aucun survivant ne bouge sous le clavier")
@@ -93,7 +96,7 @@ func _process(_delta: float) -> bool:
 		t._bubble_cooldown = 0.0
 		_main.stock.add("eau", 10)
 		_water_before = _main.stock.total_taken.get("eau", 0)
-	if _frames == 1765:
+	if _frames == 1885:
 		var t: Survivor = _main.survivors[4]
 		check(t.bubble.is_showing(), "bulle affichée quand il a soif : « %s »" % t.bubble.text())
 		check(t.activity_text() == "Va boire et manger au village", "part boire au village de lui-même")
@@ -125,6 +128,34 @@ func _process(_delta: float) -> bool:
 		var t: Survivor = _main.survivors[4]
 		check(t.thirst >= Survivor.NEED_REFILLED - 5.0, "a bu au stock (eau %.0f)" % t.thirst)
 		check(_main.stock.total_taken.get("eau", 0) > _water_before, "de l'eau a été prise au stock")
+		# Vagues : plus de mannequins, une vague de monstres sans dégâts.
+		check(_main.wave_manager.alive_count() == 0, "aucun monstre au départ (mannequins retirés)")
+		_main.debug_heal_all()
+		_main.wave_manager.wave_cleared.connect(func(_n): _cleared = true)
+		_wave = _main.wave_manager.spawn_wave(4, "Est")
+		check(_wave.size() == 4 and _main.wave_manager.alive_count() == 4, "vague de 4 monstres lancée")
+		_wave_dist = _wave[0].global_position.distance_to(Vector2.ZERO)
+	if _frames == 2700:
+		var moved := false
+		var hit := false
+		for m in _wave:
+			if is_instance_valid(m):
+				if m.global_position.distance_to(Vector2.ZERO) < _wave_dist - 100.0:
+					moved = true
+				if m.hp < m.max_hp:
+					hit = true
+			else:
+				hit = true
+		check(moved or hit, "les monstres avancent vers le village et se font tirer dessus")
+		var unhurt := true
+		for s in _main.survivors:
+			if s.hp < s.max_hp:
+				unhurt = false
+		check(unhurt, "les monstres ne font pas de dégâts")
+		_main.wave_manager.kill_all()
+		check(_main.wave_manager.alive_count() == 0 and _cleared, "tuer tous les monstres : vague repoussée")
+		_main.debug_panel.toggle()
+		check(_main.debug_panel.visible, "panneau debug ouvert")
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false

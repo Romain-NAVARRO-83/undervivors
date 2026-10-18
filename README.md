@@ -25,6 +25,7 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 | Mode escouade on/off | F |
 | Changer de formation | V |
 | Stock d'objets (équiper / ranger) | I, ou bouton en haut à droite |
+| Panneau debug | F1, ou bouton en haut à droite |
 
 ## Contenu du prototype v0.1
 
@@ -32,7 +33,7 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - 4 survivants aux noms générés (dont 1 héros ★, sans capacité pour l'instant).
 - Survivant contrôlé : déplacement, visée, tir. Les autres errent autour du feu de camp et tirent seuls sur les cibles à portée.
 - Armes paramétrables : lance-pierre par défaut, fusil à pompe à ramasser au sud-ouest du village.
-- Cibles d'entraînement qui encaissent, se cassent, réapparaissent et rapportent de l'XP.
+- (v0.1–0.9) Cibles d'entraînement, remplacées en v0.10 par des vagues de monstres.
 - Mort définitive ; si tous meurent, un nouveau survivant apparaît au centre (pas encore d'ennemi qui attaque).
 
 ## Ajouts v0.2
@@ -95,6 +96,17 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - **Ranger** rend l'arme au stock et redonne le lance-pierre.
 - Avec une arme sélectionnée, chaque survivant affiche le gain ou la perte de dégâts/s (vert / rouge).
 
+## Ajouts v0.10 : vagues de monstres et panneau debug
+
+- Les mannequins sont remplacés par des **monstres de base** : petites créatures cornues qui chassent le survivant le plus proche (ou marchent vers le village). Ils se jettent sur leur cible mais **ne font pas de dégâts** pour l'instant. 30 PV, 20 XP chacun.
+- Les monstres arrivent en **vagues** depuis un bord de la carte (nord, est, sud ou ouest).
+- **Panneau debug (F1)** :
+  - Vagues : nombre de monstres, direction, lancer une vague, tuer tous les monstres, vagues automatiques toutes les 30 s.
+  - Survivants : recruter, +100 XP au survivant contrôlé, soigner et rassasier, affamer tout le monde (F10).
+  - Stock : +10 eau, +10 nourriture, +1 arme aléatoire.
+  - Monde : faire réapparaître les coffres, vitesse du jeu ×1 / ×2 / ×4.
+  - Infos : numéro de vague, monstres en vie, FPS.
+
 ## Structure
 
 ```
@@ -104,7 +116,8 @@ scripts/survivor.gd       survivant : contrôle, errance, tir autonome, stats
 scripts/name_generator.gd générateur de noms par syllabes multi-pays
 scripts/weapon_data.gd    ressource « arme » (dégâts, cadence, dispersion, élément…)
 scripts/projectile.gd     projectile
-scripts/target_dummy.gd   cible d'entraînement (placeholder d'ennemi)
+scripts/mob.gd            monstre de base (sans dégâts pour l'instant)
+scripts/wave_manager.gd   vagues de monstres
 scripts/iso_ground.gd     sol isométrique placeholder
 scripts/survivor_appearance.gd  apparence aléatoire et dessin du visage
 scripts/resource_node.gd  points de récolte (mare, cocotiers)
@@ -115,6 +128,7 @@ scripts/loot_chest.gd     coffre de loot cassable
 scripts/loot_table.gd     tirage du contenu des coffres
 scripts/item_pickup.gd    objet au sol, ramassage
 scripts/ui/loot_panel.gd  panneau du stock d'objets
+scripts/ui/debug_panel.gd panneau debug (F1)
 scripts/ui/               interface : panneau de gestion, tuiles, vignettes, styles
 data/weapons/*.tres       armes, modifiables dans l'inspecteur de Godot
 tests/run_tests.gd        tests automatisés

@@ -28,6 +28,10 @@ var hud_portrait: SurvivorPortrait
 var stock_label: Label
 var notice_label: Label
 var panel: ManagementPanel
+var debug_panel: DebugPanel
+var wave_manager: WaveManager
+## Coffres de loot (GDD 8 bis) : on tire dessus pour les casser.
+const CHEST_POSITIONS := [Vector2(-430, -80), Vector2(170, -300), Vector2(440, 170), Vector2(-60, 290)]
 var loot_panel: LootPanel
 var survivors: Array[Survivor] = []
 var resource_nodes: Array[ResourceNode] = []
@@ -74,22 +78,21 @@ func _ready() -> void:
 	for i in START_SURVIVORS:
 		_spawn_survivor(VILLAGE_CENTER + Vector2(randf_range(-60, 60), randf_range(-30, 30)), i == 0)
 
-	for pos in [Vector2(320, -60), Vector2(380, 40), Vector2(-340, 20), Vector2(-260, -120), Vector2(60, -260)]:
-		var d := TargetDummy.new()
-		d.position = pos
-		world.add_child(d)
+	# Vagues de monstres (déclenchées depuis le panneau debug pour l'instant)
+	wave_manager = WaveManager.new()
+	wave_manager.name = "WaveManager"
+	wave_manager.world = world
+	wave_manager.village_center = VILLAGE_CENTER
+	wave_manager.wave_started.connect(func(n, c, d): _notify("Vague n°%d : %d monstres arrivent par le %s !" % [n, c, d.to_lower()]))
+	wave_manager.wave_cleared.connect(func(n): _notify("Vague n°%d repoussée" % n))
+	add_child(wave_manager)
 
 	var pickup := ItemPickup.new()
 	pickup.item = load("res://data/weapons/shotgun.tres")
 	pickup.position = Vector2(-160, 160)
 	world.add_child(pickup)
 
-	# Coffres de loot (GDD 8 bis) : on tire dessus pour les casser.
-	for pos in [Vector2(-430, -80), Vector2(170, -300), Vector2(440, 170), Vector2(-60, 290)]:
-		var chest := LootChest.new()
-		chest.world = world
-		chest.position = pos
-		world.add_child(chest)
+	respawn_chests()
 
 	camera = Camera2D.new()
 	camera.zoom = Vector2(1.6, 1.6)
@@ -129,6 +132,7 @@ func _register_inputs() -> void:
 		"toggle_squad": [KEY_F],
 		"cycle_formation": [KEY_V],
 		"debug_needs": [KEY_F10],
+		"toggle_debug": [KEY_F1],
 	}
 	for action in map:
 		if InputMap.has_action(action):
@@ -153,11 +157,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("toggle_squad"):
 		set_squad_mode(not squad_mode)
 	elif event.is_action_pressed("debug_needs"):
-		# Debug : met tout le monde en manque, pour tester faim, soif et bulles.
-		for s in survivors:
-			s.thirst = 20.0
-			s.hunger = 25.0
-		_notify("Debug (F10) : tous les survivants ont faim et soif")
+		debug_starve_all()
+	elif event.is_action_pressed("toggle_debug"):
+		debug_panel.toggle()
 	elif event.is_action_pressed("cycle_formation"):
 		formation = ((formation + 1) % Formation.size()) as Formation
 		_notify("Formation : %s" % FORMATION_NAMES[formation])
@@ -378,6 +380,62 @@ func _process(delta: float) -> void:
 	_update_hud()
 
 
+# --- Outils de debug (panneau F1) ------------------------------------------
+
+## Remplace les coffres cassés et pose ceux qui manquent.
+func respawn_chests() -> void:
+	for c in get_tree().get_nodes_in_group("chests"):
+		if c.is_broken:
+			c.remove_from_group("chests")
+			c.queue_free()
+	for pos in CHEST_POSITIONS:
+		var exists := false
+		for c in get_tree().get_nodes_in_group("chests"):
+			if c.position == pos and not c.is_broken:
+				exists = true
+		if not exists:
+			var chest := LootChest.new()
+			chest.world = world
+			chest.position = pos
+			world.add_child(chest)
+
+
+func debug_recruit() -> void:
+	var s := _spawn_survivor(VILLAGE_CENTER + Vector2(randf_range(-40, 40), randf_range(-20, 20)))
+	_notify("%s rejoint le village" % s.full_name())
+
+
+func debug_give_xp(amount: int) -> void:
+	if is_instance_valid(selected):
+		selected.add_xp(amount)
+		_notify("%s : +%d XP" % [selected.first_name, amount])
+	else:
+		_notify("Aucun survivant contrôlé")
+
+
+func debug_heal_all() -> void:
+	for s in survivors:
+		s.hp = s.max_hp
+		s.thirst = Survivor.NEED_MAX
+		s.hunger = Survivor.NEED_MAX
+	_notify("Tout le monde est soigné et rassasié")
+
+
+func debug_starve_all() -> void:
+	for s in survivors:
+		s.thirst = 20.0
+		s.hunger = 25.0
+	_notify("Debug : tous les survivants ont faim et soif")
+
+
+func debug_add_random_weapon() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var item: Resource = LootTable.roll(rng, 1, 1)[0]
+	stock.add_item(item)
+	_notify("Stock : +1 %s" % LootTable.item_name(item))
+
+
 ## Les deux panneaux (survivants, objets) ne s'affichent pas en même temps.
 func _toggle_panel() -> void:
 	loot_panel.visible = false
@@ -474,8 +532,21 @@ func _build_hud() -> void:
 	layer.add_child(loot_panel)
 	loot_panel.setup(stock)
 
+	debug_panel = DebugPanel.new()
+	debug_panel.main = self
+	layer.add_child(debug_panel)
+	var debug_btn := UIStyle.button("Debug  [F1]", 15)
+	debug_btn.anchor_left = 1.0
+	debug_btn.anchor_right = 1.0
+	debug_btn.offset_left = -420
+	debug_btn.offset_right = -310
+	debug_btn.offset_top = 12
+	debug_btn.offset_bottom = 48
+	debug_btn.pressed.connect(debug_panel.toggle)
+	layer.add_child(debug_btn)
+
 	var help := Label.new()
-	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : survivants   I : objets   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare / aux cocotiers   Échap : relâcher (caméra libre)"
+	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : survivants   I : objets   F1 : debug   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare / aux cocotiers   Échap : relâcher (caméra libre)"
 	help.add_theme_font_size_override("font_size", 13)
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.anchor_top = 1.0
