@@ -152,6 +152,14 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Debug : chantiers instantanés, construction gratuite.
 - (v0.16) Murs et tourelles sont des **blocs iso 2D** à l'empreinte exacte d'une tuile (64×32) et de faible hauteur (mur 18 px, tourelle 24 px) ; collision et contact des monstres suivent le losange.
 
+## Ajouts v0.17 : monde agrandi
+
+- Carte environ 1,8× plus grande (81 × 81 tuiles), avec plage et mer le long des deux côtes sud.
+- Place du village (zone marron) agrandie : rayon ≈ 9,5 tuiles autour du feu.
+- **On ne construit que sur la place du camp** ; ailleurs, l'aperçu est rouge avec le message « Seulement sur la place du camp (zone marron) ».
+- Contenu redistribué hors de la place : mare, cocotiers, forêt, 5 coffres, 5 camps d'ennemis ; crête rocheuse repoussée vers l'est (x = 900), toujours un seul passage gardé par les deux générateurs ; tout un territoire à explorer derrière.
+- Vagues et caméra libre adaptées à la nouvelle taille.
+
 ## Structure
 
 ```

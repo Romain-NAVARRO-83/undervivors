@@ -57,6 +57,8 @@ func check_tile(t: Vector2i, kind: String) -> String:
 	var c := tile_center(t)
 	if not Terrain.inside_map(c * 1.04):
 		return "Hors de la carte"
+	if not IsoGround.in_village(t):
+		return "Seulement sur la place du camp (zone marron)"
 	if occupied.has(t) and is_instance_valid(occupied[t]):
 		return "Emplacement occupé"
 	if absf(c.x - Terrain.RIDGE_X) < 36.0 and absf(c.y - Terrain.GAP_Y) > Terrain.GAP_HALF:

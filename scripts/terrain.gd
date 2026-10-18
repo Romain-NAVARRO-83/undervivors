@@ -8,12 +8,12 @@ extends RefCounted
 ## par l'entrée du passage. (À remplacer par la navigation de Godot quand la
 ## carte aura plus d'obstacles.)
 
-const RIDGE_X := 400.0
+const RIDGE_X := 900.0
 const GAP_Y := 0.0
 const GAP_HALF := 42.0          # demi-largeur du passage
 const RIDGE_THICKNESS := 26.0
 ## Losange de la carte (bords du sol isométrique), sommets haut / droite / bas / gauche.
-const MAP_HALF := Vector2(1440, 720)
+const MAP_HALF := Vector2((IsoGround.HALF_SIZE + 0.5) * IsoGround.TILE_W, (IsoGround.HALF_SIZE + 0.5) * IsoGround.TILE_H)
 
 static var enabled := true
 

@@ -13,7 +13,7 @@ const DIRECTIONS := {
 	"Ouest": Vector2(-1, 0),
 }
 ## Distance d'apparition depuis le centre du village (écran iso : moins haut que large).
-const SPAWN_DISTANCE := Vector2(620, 340)
+const SPAWN_DISTANCE := Vector2(1150, 540)
 
 var world: Node2D
 var village_center := Vector2.ZERO

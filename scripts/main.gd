@@ -8,7 +8,7 @@ const SQUAD_MAX := 4
 const FORMATION_SPACING := 30.0
 ## Caméra libre (mode gestion) : vitesse en pixels écran par seconde, limites du monde.
 const FREE_CAMERA_SPEED := 700.0
-const CAMERA_LIMIT := Vector2(1500, 800)
+const CAMERA_LIMIT := Vector2(2650, 1330)
 
 enum Formation { COLONNE, LIGNE, CERCLE }
 const FORMATION_NAMES := ["Colonne", "Ligne", "Cercle"]
@@ -38,13 +38,15 @@ var alert_active := false
 ## Coffres de loot (GDD 8 bis) : on tire dessus pour les casser.
 ## Ennemis postés sur la carte (camps) et générateurs de bots.
 const ENEMY_CAMPS := [
-	[Vector2(600, -330), 3],
-	[Vector2(-460, -200), 3],
-	[Vector2(480, 130), 2],    # gardent le coffre de l'est
+	[Vector2(1300, -420), 3],
+	[Vector2(-950, -300), 3],
+	[Vector2(1150, 330), 2],   # gardent le coffre de l'est
+	[Vector2(1750, 60), 3],
+	[Vector2(-300, -800), 2],  # gardent le coffre du nord
 ]
 ## Les deux générateurs gardent le seul passage de la crête (côté est).
-const SPAWNER_POSITIONS := [Vector2(475, -80), Vector2(475, 80)]
-const CHEST_POSITIONS := [Vector2(-430, -80), Vector2(170, -300), Vector2(440, 170), Vector2(-60, 290)]
+const SPAWNER_POSITIONS := [Vector2(Terrain.RIDGE_X + 75, -80), Vector2(Terrain.RIDGE_X + 75, 80)]
+const CHEST_POSITIONS := [Vector2(-880, -140), Vector2(-260, -760), Vector2(1080, 360), Vector2(-160, 520), Vector2(1850, -320)]
 var loot_panel: LootPanel
 var survivors: Array[Survivor] = []
 var resource_nodes: Array[ResourceNode] = []
@@ -79,7 +81,7 @@ func _ready() -> void:
 	# Point de récolte d'eau
 	var pond := ResourceNode.new()
 	pond.name = "Mare"
-	pond.position = Vector2(230, 150)
+	pond.position = Vector2(520, 200)
 	world.add_child(pond)
 	resource_nodes.append(pond)
 
@@ -91,7 +93,7 @@ func _ready() -> void:
 	grove.visual = ResourceNode.Visual.COCOTIERS
 	grove.gather_time = 3.0
 	grove.radius = 44.0
-	grove.position = Vector2(-270, 200)
+	grove.position = Vector2(-500, 470)
 	world.add_child(grove)
 	resource_nodes.append(grove)
 
@@ -103,7 +105,7 @@ func _ready() -> void:
 	forest.visual = ResourceNode.Visual.FORET
 	forest.gather_time = 4.0
 	forest.radius = 48.0
-	forest.position = Vector2(-190, -320)
+	forest.position = Vector2(-320, -440)
 	world.add_child(forest)
 	resource_nodes.append(forest)
 
@@ -130,7 +132,7 @@ func _ready() -> void:
 
 	var pickup := ItemPickup.new()
 	pickup.item = load("res://data/weapons/shotgun.tres")
-	pickup.position = Vector2(-160, 160)
+	pickup.position = Vector2(-320, 260)
 	world.add_child(pickup)
 
 	respawn_chests()

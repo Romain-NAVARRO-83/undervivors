@@ -5,7 +5,27 @@ extends Node2D
 
 const TILE_W := 64
 const TILE_H := 32
-@export var half_size: int = 22
+## Demi-taille de la carte, en tuiles (la carte fait 2 × HALF_SIZE + 1 tuiles de côté).
+const HALF_SIZE := 40
+## Rayon (en tuiles) de la place du village, la zone marron où l'on peut construire.
+const VILLAGE_RADIUS := 9.5
+## Côtes sud-est et sud-ouest (bords i et j max) : mer puis plage, en tuiles depuis le bord.
+const SEA_ROWS := 4
+const BEACH_ROWS := 6
+var half_size: int = HALF_SIZE
+
+
+## Vrai si la tuile appartient à la place du village (constructible).
+static func in_village(t: Vector2i) -> bool:
+	return Vector2(t.x, t.y).length() < VILLAGE_RADIUS
+
+
+static func is_sea(t: Vector2i) -> bool:
+	return maxi(t.x, t.y) > HALF_SIZE - SEA_ROWS
+
+
+static func is_beach(t: Vector2i) -> bool:
+	return not is_sea(t) and maxi(t.x, t.y) > HALF_SIZE - SEA_ROWS - BEACH_ROWS
 
 
 static func tile_to_world(i: int, j: int) -> Vector2:
@@ -16,13 +36,12 @@ func _draw() -> void:
 	for i in range(-half_size, half_size + 1):
 		for j in range(-half_size, half_size + 1):
 			var c := tile_to_world(i, j)
-			var d := Vector2(i, j).length()
 			var base: Color
-			if d < 3.5:
-				base = Color(0.55, 0.45, 0.3)        # place du village
-			elif i + j > half_size * 0.9:
+			if in_village(Vector2i(i, j)):
+				base = Color(0.55, 0.45, 0.3)        # place du village (constructible)
+			elif is_sea(Vector2i(i, j)):
 				base = Color(0.2, 0.45, 0.65)        # mer
-			elif i + j > half_size * 0.6:
+			elif is_beach(Vector2i(i, j)):
 				base = Color(0.86, 0.78, 0.55)       # plage
 			else:
 				base = Color(0.35, 0.55, 0.3)        # herbe

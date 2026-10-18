@@ -82,7 +82,7 @@ func _process(_delta: float) -> bool:
 		_main._select(m[2])
 		check(_main.selected == m[2] and m[0].following and not m[2].following, "changement de leader")
 		m[2].global_position += Vector2(200, 60)
-	if _frames == 1820:
+	if _frames == 1960:
 		var m: Array = _main.survivors
 		var ok := true
 		for i in [0, 1, 3]:
@@ -103,7 +103,7 @@ func _process(_delta: float) -> bool:
 		check(_main.squad.size() == 4, "composition conservée après relâchement")
 		_cam_x = _main.camera.position.x
 		Input.action_press("move_right")
-	if _frames == 1880:
+	if _frames == 2020:
 		Input.action_release("move_right")
 		check(_main.camera.position.x > _cam_x + 100.0, "caméra libre déplacée au clavier (%.0f px)" % (_main.camera.position.x - _cam_x))
 		check(not _main.survivors[2].selected, "aucun survivant ne bouge sous le clavier")
@@ -115,9 +115,9 @@ func _process(_delta: float) -> bool:
 		t._bubble_cooldown = 0.0
 		_main.stock.add("eau", 10)
 		_water_before = _main.stock.total_taken.get("eau", 0)
-	if _frames == 1883:
+	if _frames == 2023:
 		check(not _main.squad_bar.visible, "mode gestion : la barre d'escouade est masquée")
-	if _frames == 1885:
+	if _frames == 2025:
 		var t: Survivor = _main.survivors[4]
 		check(t.bubble.is_showing(), "bulle affichée quand il a soif : « %s »" % t.bubble.text())
 		check(t.activity_text() == "Va boire et manger au village", "part boire au village de lui-même")
@@ -267,6 +267,8 @@ func _process(_delta: float) -> bool:
 		check(_wall_b != null and not _wall_b.is_built, "le mur commence en chantier")
 		check(bm.place("mur", t_wall) == null, "case déjà occupée : refus")
 		check(bm.check_tile(BuildManager.world_to_tile(Vector2(Terrain.RIDGE_X, -250)), "mur") != "", "impossible de construire sur la crête")
+		check(bm.check_tile(BuildManager.world_to_tile(Vector2(700, -300)), "mur").begins_with("Seulement"), "hors de la place du camp : construction refusée")
+		check(IsoGround.in_village(BuildManager.world_to_tile(Vector2(300, 0))), "la place du camp est agrandie (300 px à l'est du feu est constructible)")
 		_turret_b = bm.place("tourelle", BuildManager.world_to_tile(Vector2(-60, 140)))
 		check(_turret_b != null and _main.stock.get_amount("bois") == 12, "tourelle posée : 6 bois dépensés")
 	if _frames == 3421 + 260:
@@ -457,11 +459,11 @@ func test_inventory() -> void:
 
 
 func test_terrain() -> void:
-	var a := Vector2(200, -200)
-	var b := Vector2(700, -200)
+	var a := Vector2(Terrain.RIDGE_X - 300, -200)
+	var b := Vector2(Terrain.RIDGE_X + 300, -200)
 	var wp := Terrain.route(a, b)
 	check(wp.x < Terrain.RIDGE_X and absf(wp.y - Terrain.GAP_Y) < 1.0, "pour traverser la crête, on passe par l'entrée du passage")
-	check(Terrain.route(a, Vector2(100, 300)) == Vector2(100, 300), "même côté : trajet direct")
+	check(Terrain.route(a, Vector2(Terrain.RIDGE_X - 600, 300)) == Vector2(Terrain.RIDGE_X - 600, 300), "même côté : trajet direct")
 	var inside := Terrain.route(Vector2(Terrain.RIDGE_X - 20, 5), b)
 	check(inside.x > Terrain.RIDGE_X, "dans le passage : on file vers l'autre côté")
 
