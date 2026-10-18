@@ -79,6 +79,14 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Même fonctionnement que la mare : clic droit dessus avec un survivant contrôlé, ou menu Tâche du panneau.
 - Les survivants mangent ce qui arrive au stock quand leur jauge est sous 80 % : au début, le stock peut donc rester bas le temps que tout le monde soit rassasié.
 
+## Ajouts v0.8 : coffres et loot
+
+- 4 coffres sur la carte : on tire dessus pour les casser ; ils libèrent 1 à 3 objets qui jaillissent au sol.
+- Nouvelles armes à trouver : pistolet rouillé, taser bricolé, sarbacane empoisonnée, fusil-harpon givré (rare), fusil à pompe.
+- Ramassage : le survivant qui passe sur un objet le prend. S'il n'a que le lance-pierre, il équipe l'arme ; sinon elle va dans son sac (4 objets au niveau 1, +2 par niveau). Sac plein : l'objet reste au sol (le survivant le dit dans une bulle).
+- Le sac est vidé dans le stock d'objets commun en passant au feu de camp (compteur « Objets » en haut). Mort en route = sac perdu.
+- Les coffres ne sont pas des ennemis : le tir autonome ne les vise pas.
+
 ## Structure
 
 ```
@@ -89,13 +97,15 @@ scripts/name_generator.gd générateur de noms par syllabes multi-pays
 scripts/weapon_data.gd    ressource « arme » (dégâts, cadence, dispersion, élément…)
 scripts/projectile.gd     projectile
 scripts/target_dummy.gd   cible d'entraînement (placeholder d'ennemi)
-scripts/weapon_pickup.gd  arme au sol
 scripts/iso_ground.gd     sol isométrique placeholder
 scripts/survivor_appearance.gd  apparence aléatoire et dessin du visage
 scripts/resource_node.gd  points de récolte (mare, cocotiers)
 scripts/village_stock.gd  stock commun du village
 scripts/ui/squad_bar.gd   barre d'escouade
 scripts/speech_bubble.gd  bulle de dialogue (phylactère)
+scripts/loot_chest.gd     coffre de loot cassable
+scripts/loot_table.gd     tirage du contenu des coffres
+scripts/item_pickup.gd    objet au sol, ramassage
 scripts/ui/               interface : panneau de gestion, tuiles, vignettes, styles
 data/weapons/*.tres       armes, modifiables dans l'inspecteur de Godot
 tests/run_tests.gd        tests automatisés

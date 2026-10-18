@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapon_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Sarbacane empoisonnée"
+damage = 5.0
+fire_rate = 1.8
+bullets_per_shot = 1
+spread_deg = 2.0
+projectile_speed = 560.0
+max_range = 400.0
+element = 4
+element_damage = 8.0
+projectile_color = Color(0.55, 0.85, 0.3, 1)

@@ -28,6 +28,10 @@ var last_name: String = ""
 var is_hero: bool = false
 var appearance: SurvivorAppearance
 var weapon: WeaponData
+## Sac individuel (GDD 8 bis) : objets ramassés, rentrés au feu de camp.
+var inventory: Array[Resource] = []
+const SLINGSHOT_PATH := "res://data/weapons/slingshot.tres"
+var _full_bag_cooldown := 0.0
 var selected: bool = false:
 	set(value):
 		selected = value
@@ -142,6 +146,47 @@ func carry_capacity() -> int:
 	return 1 + level
 
 
+## Taille du sac : 4 objets au niveau 1, +2 par niveau (l'arme équipée ne compte pas).
+func bag_capacity() -> int:
+	return 4 + 2 * (level - 1)
+
+
+func has_only_slingshot() -> bool:
+	return weapon == null or weapon.resource_path == SLINGSHOT_PATH
+
+
+## Essaie de ramasser un objet. Retourne false si le sac est plein
+## (l'objet reste alors au sol).
+func try_pick_up(item: Resource) -> bool:
+	if item is WeaponData and has_only_slingshot():
+		equip(item)
+		_say("%s, à moi !" % LootTable.item_name(item), 2.0)
+		return true
+	if inventory.size() >= bag_capacity():
+		if _full_bag_cooldown <= 0.0:
+			_say("Mon sac est plein !", 2.0)
+			_full_bag_cooldown = 4.0
+		return false
+	inventory.append(item)
+	return true
+
+
+## Au feu de camp : le contenu du sac rejoint le stock d'objets commun.
+func _deposit_inventory() -> void:
+	if inventory.is_empty() or stock == null:
+		return
+	var n := inventory.size()
+	for item in inventory:
+		stock.add_item(item)
+	inventory.clear()
+	_say("Butin rapporté : %d objet%s" % [n, "s" if n > 1 else ""], 2.5)
+
+
+func _say(text: String, duration := 3.0) -> void:
+	if bubble:
+		bubble.say(text, duration)
+
+
 ## Assigne le survivant à un point de récolte, ou le libère avec null.
 ## S'il porte quelque chose, il va d'abord le déposer au village.
 func assign(node: ResourceNode) -> void:
@@ -236,9 +281,11 @@ func _update_needs(delta: float) -> void:
 	hunger = maxf(hunger - HUNGER_DECAY * delta, 0.0)
 	# En passant au centre du village : on dépose, puis on boit et mange au stock.
 	_refill_cooldown -= delta
+	_full_bag_cooldown -= delta
 	if global_position.distance_to(village_center) < 40.0:
 		if carrying > 0:
 			_deposit()
+		_deposit_inventory()
 		if _refill_cooldown <= 0.0:
 			_refill_cooldown = 1.0
 			_refill("eau")

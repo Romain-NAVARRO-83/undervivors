@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapon_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Fusil-harpon givré"
+damage = 30.0
+fire_rate = 0.8
+bullets_per_shot = 1
+spread_deg = 1.0
+projectile_speed = 600.0
+max_range = 440.0
+element = 2
+element_damage = 6.0
+projectile_color = Color(0.6, 0.9, 1, 1)

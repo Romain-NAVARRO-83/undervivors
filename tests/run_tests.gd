@@ -12,6 +12,8 @@ var _worker: Survivor
 var _frames := 0
 var _cam_x := 0.0
 var _water_before := 0
+var _chest: LootChest
+var _pickups_before := 0
 
 
 func _init() -> void:
@@ -21,6 +23,7 @@ func _init() -> void:
 	test_level_up()
 	test_stock()
 	test_needs()
+	test_inventory()
 	# Test de scène : cycle de récolte complet à la mare (se termine dans _process).
 	_main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(_main)
@@ -94,6 +97,17 @@ func _process(_delta: float) -> bool:
 		var t: Survivor = _main.survivors[4]
 		check(t.bubble.is_showing(), "bulle affichée quand il a soif : « %s »" % t.bubble.text())
 		check(t.activity_text() == "Va boire et manger au village", "part boire au village de lui-même")
+	if _frames == 2240:
+		# Coffre : on le casse en tirant (dégâts directs ici), le loot jaillit au sol.
+		_chest = _main.get_tree().get_nodes_in_group("chests")[0]
+		_pickups_before = _main.get_tree().get_nodes_in_group("item_pickups").size()
+		_chest.take_damage(15.0)
+		check(not _chest.is_broken, "le coffre résiste au premier tir")
+		_chest.take_damage(20.0)
+		check(_chest.is_broken, "le coffre se casse")
+	if _frames == 2250:
+		var n: int = _main.get_tree().get_nodes_in_group("item_pickups").size() - _pickups_before
+		check(n >= 1 and n <= 3, "%d objet(s) au sol après le coffre" % n)
 	if _frames == 2300:
 		var t: Survivor = _main.survivors[4]
 		check(t.thirst >= Survivor.NEED_REFILLED - 5.0, "a bu au stock (eau %.0f)" % t.thirst)
@@ -192,6 +206,36 @@ func test_needs() -> void:
 	check(s.needs_refill(), "assoiffé et eau en stock : va boire")
 	s._refill("eau")
 	check(s.thirst >= Survivor.NEED_REFILLED and st.get_amount("eau") == 6, "boit au stock : 4 unités → jauge remontée")
+	s.free()
+	st.free()
+
+
+func test_inventory() -> void:
+	var s := Survivor.new()
+	var st := VillageStock.new()
+	s.stock = st
+	s.weapon = load("res://data/weapons/slingshot.tres")
+	var pistol: WeaponData = load("res://data/weapons/pistol.tres")
+	var taser: WeaponData = load("res://data/weapons/taser.tres")
+	check(s.bag_capacity() == 4, "sac : 4 objets au niveau 1")
+	s.level = 3
+	check(s.bag_capacity() == 8, "sac : 8 objets au niveau 3 (+2 par niveau)")
+	s.level = 1
+	check(s.try_pick_up(pistol) and s.weapon == pistol and s.inventory.is_empty(), "lance-pierre seul : l'arme ramassée est équipée")
+	check(s.try_pick_up(taser) and s.weapon == pistol and s.inventory.size() == 1, "déjà armé : l'arme va dans le sac")
+	for i in 3:
+		s.try_pick_up(taser)
+	check(s.inventory.size() == 4 and not s.try_pick_up(taser), "sac plein : l'objet n'est pas ramassé")
+	s._deposit_inventory()
+	check(s.inventory.is_empty() and st.items.size() == 4, "au feu de camp : le sac rejoint le stock d'objets")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var ok := true
+	for i in 50:
+		var r := LootTable.roll(rng)
+		if r.size() < 1 or r.size() > 3:
+			ok = false
+	check(ok, "un coffre donne 1 à 3 objets")
 	s.free()
 	st.free()
 

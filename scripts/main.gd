@@ -78,10 +78,17 @@ func _ready() -> void:
 		d.position = pos
 		world.add_child(d)
 
-	var pickup := WeaponPickup.new()
-	pickup.weapon = load("res://data/weapons/shotgun.tres")
+	var pickup := ItemPickup.new()
+	pickup.item = load("res://data/weapons/shotgun.tres")
 	pickup.position = Vector2(-160, 160)
 	world.add_child(pickup)
+
+	# Coffres de loot (GDD 8 bis) : on tire dessus pour les casser.
+	for pos in [Vector2(-430, -80), Vector2(170, -300), Vector2(440, 170), Vector2(-60, 290)]:
+		var chest := LootChest.new()
+		chest.world = world
+		chest.position = pos
+		world.add_child(chest)
 
 	camera = Camera2D.new()
 	camera.zoom = Vector2(1.6, 1.6)
@@ -395,8 +402,8 @@ func _build_hud() -> void:
 	stock_box.add_theme_stylebox_override("panel", UIStyle.box(UIStyle.BG, UIStyle.BORDER, 10, 2, 8))
 	stock_box.anchor_left = 0.5
 	stock_box.anchor_right = 0.5
-	stock_box.offset_left = -110
-	stock_box.offset_right = 110
+	stock_box.offset_left = -160
+	stock_box.offset_right = 160
 	stock_box.offset_top = 12
 	layer.add_child(stock_box)
 	stock_label = UIStyle.label("", 15)
@@ -448,7 +455,7 @@ func _build_hud() -> void:
 
 
 func _update_hud() -> void:
-	stock_label.text = "Eau  %d     Nourriture  %d" % [stock.get_amount("eau"), stock.get_amount("nourriture")]
+	stock_label.text = "Eau  %d     Nourriture  %d     Objets  %d" % [stock.get_amount("eau"), stock.get_amount("nourriture"), stock.items.size()]
 	var lines: PackedStringArray = []
 	if is_instance_valid(selected):
 		var w := selected.weapon
@@ -465,6 +472,8 @@ func _update_hud() -> void:
 			"" if w.element == WeaponData.Element.AUCUN else ", " + WeaponData.element_name(w.element)])
 		lines.append("Eau %d %%   Nourriture %d %%%s" % [selected.thirst, selected.hunger,
 			"   (ralenti !)" if selected.thirst <= 0.0 or selected.hunger <= 0.0 else ""])
+		if not selected.inventory.is_empty():
+			lines.append("Sac %d/%d : à rapporter au feu de camp" % [selected.inventory.size(), selected.bag_capacity()])
 		if selected.carrying > 0:
 			lines.append("Porte %d %s : à déposer au feu de camp" % [selected.carrying, selected.carrying_type])
 	else:

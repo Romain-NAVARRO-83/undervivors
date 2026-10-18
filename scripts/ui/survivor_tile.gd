@@ -115,6 +115,7 @@ func _ready() -> void:
 		grid.add_child(plus)
 
 	_weapon = UIStyle.label("", 12, UIStyle.TEXT_DIM)
+	_weapon.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	root.add_child(_weapon)
 
 	# Tâche : errance ou récolte sur un point
@@ -195,6 +196,13 @@ func refresh() -> void:
 		b.disabled = not on
 		b.mouse_filter = Control.MOUSE_FILTER_STOP if on else Control.MOUSE_FILTER_IGNORE
 	_weapon.text = "Arme : %s" % (s.weapon.weapon_name if s.weapon else "—")
+	var bag := "Sac %d/%d" % [s.inventory.size(), s.bag_capacity()]
+	if not s.inventory.is_empty():
+		var names: PackedStringArray = []
+		for it in s.inventory:
+			names.append(LootTable.item_name(it))
+		bag += " : " + ", ".join(names)
+	_weapon.text += "\n" + bag
 	var wanted := 0 if s.task_node == null else resource_nodes.find(s.task_node) + 1
 	if _task.selected != wanted:
 		_task.select(wanted)

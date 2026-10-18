@@ -7,6 +7,10 @@ signal changed(resource_type: String, amount: int)
 const LABELS := {"eau": "Eau", "nourriture": "Nourriture"}
 
 var amounts := {"eau": 0, "nourriture": 0}
+## Stock d'objets commun (armes, armures…), alimenté au feu de camp.
+var items: Array[Resource] = []
+signal items_changed
+
 ## Totaux cumulés depuis le début (statistiques, tests).
 var total_added := {}
 var total_taken := {}
@@ -27,6 +31,11 @@ func take(resource_type: String, amount: int) -> int:
 	if taken > 0:
 		changed.emit(resource_type, amounts[resource_type])
 	return taken
+
+
+func add_item(item: Resource) -> void:
+	items.append(item)
+	items_changed.emit()
 
 
 func get_amount(resource_type: String) -> int:
