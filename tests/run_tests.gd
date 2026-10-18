@@ -21,6 +21,9 @@ var _spawner: MobSpawner
 var _bait: Survivor
 var _bot: Mob
 var _wall: Survivor
+var _picker: Survivor
+var _healer_bot: Mob
+var _healer_hp := 0.0
 
 
 func _init() -> void:
@@ -208,7 +211,33 @@ func _process(_delta: float) -> bool:
 			if sp.global_position.distance_to(Vector2(Terrain.RIDGE_X, Terrain.GAP_Y)) > 150.0:
 				near_gap = false
 		check(near_gap, "les deux générateurs gardent le passage")
-	if _frames == 3291:
+		# Stock plein : le récolteur de la mare se met en pause, puis reprend sous 50 %.
+		_main._select(null)
+		_picker = _main.survivors[1]
+		_main.assign_survivor(_picker, _main.resource_nodes[0])
+		_main.stock.add("eau", 99)
+		# Soin des bots dans la zone d'un générateur actif
+		for sp in _main.get_tree().get_nodes_in_group("spawners"):
+			if not sp.is_destroyed:
+				_healer_bot = sp.spawn_mob()
+				if _healer_bot == null:
+					sp.max_alive += 1
+					_healer_bot = sp.spawn_mob()
+				break
+	if _frames == 3292:
+		_healer_bot.take_damage(15.0)
+		_healer_hp = _healer_bot.hp
+	if _frames == 3340:
+		check(_picker.work_paused, "stock d'eau plein : le récolteur fait une pause")
+		check(_picker.activity_text().begins_with("En pause"), "son activité l'indique : « %s »" % _picker.activity_text())
+		var tile_badge: String = _picker.task_node.resource_type
+		check(tile_badge == "eau", "badge d'assignation eau sur sa vignette")
+		_main.stock.take("eau", 6)
+	if _frames == 3345:
+		check(not _picker.work_paused, "stock sous 50 % : il reprend la récolte tout seul")
+	if _frames == 3420:
+		check(is_instance_valid(_healer_bot) and _healer_bot.hp > _healer_hp + 2.0, "un bot dans la zone d'un générateur se soigne (%.0f → %.0f PV)" % [_healer_hp, _healer_bot.hp])
+	if _frames == 3421:
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false
@@ -358,6 +387,12 @@ func test_terrain() -> void:
 
 
 func test_stock() -> void:
+	var cap := VillageStock.new()
+	check(cap.add("eau", 14) == 10 and cap.is_full("eau"), "stock plafonné à 10")
+	check(not cap.needs_restock("eau"), "stock plein : pas besoin de récolter")
+	cap.take("eau", 6)
+	check(cap.needs_restock("eau"), "sous 50 % : la récolte doit reprendre")
+	cap.free()
 	var st := VillageStock.new()
 	st.add("eau", 5)
 	check(st.get_amount("eau") == 5, "stock : ajout")

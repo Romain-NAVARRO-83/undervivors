@@ -62,6 +62,8 @@ func refresh(squad: Array, leader: Survivor, active: bool, formation_name: Strin
 		var border := UIStyle.ACCENT if is_leader else UIStyle.BORDER
 		btn.add_theme_stylebox_override("normal", UIStyle.box(UIStyle.TILE, border, 10, 3 if is_leader else 2, 4))
 		btn.modulate.a = 1.0 if active else 0.75
+		if is_instance_valid(s):
+			(slot["portrait"] as SurvivorPortrait).show_survivor(s)
 		(slot["hp"] as ProgressBar).value = float(s.hp) / s.max_hp * 100.0 if is_instance_valid(s) else 0.0
 
 

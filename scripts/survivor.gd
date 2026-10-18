@@ -50,6 +50,8 @@ var task_node: ResourceNode = null
 var carrying: int = 0
 var carrying_type: String = ""
 var work_state: WorkState = WorkState.TO_SOURCE
+## Récolte suspendue parce que le stock est plein (reprise automatique sous 50 %).
+var work_paused := false
 ## Escouade (GDD 6) : membre de l'escouade enregistrée, et suivi du leader.
 ## `following` est vrai pour les suiveurs quand le mode escouade est actif ;
 ## `follow_point` est la place en formation, calculée par la scène principale.
@@ -211,6 +213,7 @@ func _say(text: String, duration := 3.0) -> void:
 ## S'il porte quelque chose, il va d'abord le déposer au village.
 func assign(node: ResourceNode) -> void:
 	task_node = node
+	work_paused = false
 	if node:
 		_gather_angle = _rng.randf() * TAU
 		_deposit_offset = Vector2(cos(_gather_angle), sin(_gather_angle) * 0.5) * 22.0
@@ -228,6 +231,8 @@ func activity_text() -> String:
 		return "Va boire et manger au village"
 	if task_node == null:
 		return "Dépose %d %s" % [carrying, carrying_type] if carrying > 0 else "Erre au village"
+	if work_paused:
+		return "En pause : stock de %s plein" % task_node.resource_type
 	match work_state:
 		WorkState.TO_SOURCE:
 			return "Va à : %s" % task_node.display_name
@@ -325,6 +330,7 @@ func _refill(resource_type: String) -> void:
 	var taken := stock.take(resource_type, units)
 	if taken > 0:
 		set(prop, minf(level + taken * REFILL_PER_UNIT, NEED_MAX))
+		_say("Slurp !" if resource_type == "eau" else "Miam !", 1.4)
 
 
 ## Vrai si le survivant doit aller au stock pour boire ou manger
@@ -416,6 +422,23 @@ func _process_autonomous(delta: float) -> void:
 ## Cycle de récolte : aller au point, récolter, rapporter au centre, déposer.
 func _process_work(delta: float) -> void:
 	var speed := move_speed() * 0.75
+	# Stock plein : on arrête la récolte ; reprise quand il repasse sous 50 %.
+	if task_node != null and stock != null:
+		var res := task_node.resource_type
+		if work_paused:
+			if stock.needs_restock(res):
+				work_paused = false
+				work_state = WorkState.TO_VILLAGE if carrying > 0 else WorkState.TO_SOURCE
+			else:
+				if carrying > 0 and global_position.distance_to(village_center) < 40.0:
+					_deposit()
+				_process_wander(delta)
+				return
+		elif stock.is_full(res) and work_state != WorkState.TO_VILLAGE:
+			work_paused = true
+			_say("Le stock est plein, je fais une pause.", 2.5)
+			_process_wander(delta)
+			return
 	match work_state:
 		WorkState.TO_SOURCE:
 			if task_node == null:
@@ -438,11 +461,13 @@ func _process_work(delta: float) -> void:
 				work_state = WorkState.TO_SOURCE
 
 
+## Dépose la charge au stock ; ce qui ne rentre pas (stock plein) reste porté.
 func _deposit() -> void:
 	if carrying > 0 and stock:
-		stock.add(carrying_type, carrying)
-	carrying = 0
-	carrying_type = ""
+		carrying -= stock.add(carrying_type, carrying)
+	if carrying <= 0:
+		carrying = 0
+		carrying_type = ""
 
 
 ## Fixe la vitesse vers `target` ; retourne true une fois arrivé.

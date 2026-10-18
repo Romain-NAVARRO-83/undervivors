@@ -14,6 +14,8 @@ signal zone_secured(spawner: MobSpawner)
 @export var max_alive: int = 4
 ## Rayon de la zone qu'il contrôle (affichée au sol).
 @export var zone_radius: float = 150.0
+## PV rendus par seconde aux monstres présents dans sa zone.
+@export var heal_per_second: float = 4.0
 var xp_reward: int = 100
 var hp: float = 220.0
 var world: Node2D
@@ -76,6 +78,19 @@ func spawn_mob() -> Mob:
 	return m
 
 
+## Vrai si le point (monde) est dans la zone (ellipse isométrique).
+func in_zone(p: Vector2) -> bool:
+	var d := p - global_position
+	return (d.x * d.x) / (zone_radius * zone_radius) + (d.y * d.y) / (zone_radius * zone_radius * 0.25) <= 1.0
+
+
+## Les monstres dans la zone d'un générateur actif se soignent peu à peu.
+func _heal_zone(delta: float) -> void:
+	for m in get_tree().get_nodes_in_group("mobs"):
+		if m.is_alive() and m.hp < m.max_hp and in_zone(m.global_position):
+			m.heal(heal_per_second * delta)
+
+
 func take_damage(amount: float, _element := 0) -> bool:
 	if is_destroyed:
 		return false
@@ -116,6 +131,7 @@ func _process(delta: float) -> void:
 		if _timer <= 0.0:
 			_timer = spawn_interval
 			spawn_mob()
+		_heal_zone(delta)
 	queue_redraw()
 
 

@@ -531,8 +531,8 @@ func _build_hud() -> void:
 	stock_box.add_theme_stylebox_override("panel", UIStyle.box(UIStyle.BG, UIStyle.BORDER, 10, 2, 8))
 	stock_box.anchor_left = 0.5
 	stock_box.anchor_right = 0.5
-	stock_box.offset_left = -160
-	stock_box.offset_right = 160
+	stock_box.offset_left = -185
+	stock_box.offset_right = 185
 	stock_box.offset_top = 12
 	layer.add_child(stock_box)
 	stock_label = UIStyle.label("", 15)
@@ -612,13 +612,14 @@ func _build_hud() -> void:
 
 
 func _update_hud() -> void:
-	stock_label.text = "Eau  %d     Nourriture  %d     Objets  %d" % [stock.get_amount("eau"), stock.get_amount("nourriture"), stock.items.size()]
+	stock_label.text = "Eau  %d/%d     Nourriture  %d/%d     Objets  %d" % [
+		stock.get_amount("eau"), stock.get_capacity("eau"),
+		stock.get_amount("nourriture"), stock.get_capacity("nourriture"), stock.items.size()]
 	var lines: PackedStringArray = []
 	if is_instance_valid(selected):
 		var w := selected.weapon
 		hud_portrait.visible = true
-		hud_portrait.appearance = selected.appearance
-		hud_portrait.is_hero = selected.is_hero
+		hud_portrait.show_survivor(selected)
 		lines.append("%s%s" % [selected.full_name(), "  ★" if selected.is_hero else ""])
 		var lvl := "PV %d/%d   Niveau %d" % [selected.hp, selected.max_hp, selected.level]
 		if selected.stat_points > 0:

@@ -123,6 +123,14 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Côté est : un camp d'ennemis, le coffre gardé, et les générateurs. Côté village : la mare, les cocotiers, un camp à l'ouest.
 - En mode gestion (aucun survivant sélectionné), la barre d'escouade est masquée.
 
+## Ajouts v0.13
+
+- Les survivants disent « Slurp ! » ou « Miam ! » quand ils boivent ou mangent au stock.
+- Stock d'eau et de nourriture plafonné à **10** (affiché « 7/10 »). Stock plein : les récolteurs assignés font une pause au village (en gardant ce qu'ils portent) ; ils reprennent tout seuls quand le stock repasse sous 50 %.
+- Badge d'assignation sur les vignettes (panneau, barre d'escouade, stock d'objets, HUD) : goutte = eau, noix de coco = nourriture ; barré quand la récolte est en pause.
+- Les monstres présents dans la zone d'un générateur actif regagnent 4 PV/s (croix verte).
+- Les bulles de dialogue proches s'empilent au lieu de se chevaucher.
+
 ## Structure
 
 ```

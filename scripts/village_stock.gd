@@ -7,6 +7,10 @@ signal changed(resource_type: String, amount: int)
 const LABELS := {"eau": "Eau", "nourriture": "Nourriture"}
 
 var amounts := {"eau": 0, "nourriture": 0}
+## Capacité maximale par ressource (10 pour l'instant, pourra grandir avec le village).
+var capacity := {"eau": 10, "nourriture": 10}
+## Sous ce taux de remplissage, les récolteurs en pause reprennent le travail.
+const RESUME_RATIO := 0.5
 ## Stock d'objets commun (armes, armures…), alimenté au feu de camp.
 var items: Array[Resource] = []
 signal items_changed
@@ -16,10 +20,28 @@ var total_added := {}
 var total_taken := {}
 
 
-func add(resource_type: String, amount: int) -> void:
-	amounts[resource_type] = amounts.get(resource_type, 0) + amount
-	total_added[resource_type] = total_added.get(resource_type, 0) + amount
-	changed.emit(resource_type, amounts[resource_type])
+## Ajoute dans la limite de la capacité ; retourne la quantité acceptée.
+func add(resource_type: String, amount: int) -> int:
+	var current: int = amounts.get(resource_type, 0)
+	var accepted := mini(amount, maxi(get_capacity(resource_type) - current, 0))
+	amounts[resource_type] = current + accepted
+	total_added[resource_type] = total_added.get(resource_type, 0) + accepted
+	if accepted > 0:
+		changed.emit(resource_type, amounts[resource_type])
+	return accepted
+
+
+func get_capacity(resource_type: String) -> int:
+	return capacity.get(resource_type, 999999)
+
+
+func is_full(resource_type: String) -> bool:
+	return get_amount(resource_type) >= get_capacity(resource_type)
+
+
+## Vrai quand le stock est redescendu sous la moitié : la récolte peut reprendre.
+func needs_restock(resource_type: String) -> bool:
+	return get_amount(resource_type) < get_capacity(resource_type) * RESUME_RATIO
 
 
 ## Retire jusqu'à `amount` unités ; retourne la quantité réellement prise.

@@ -173,6 +173,7 @@ func refresh() -> void:
 	if not is_instance_valid(survivor):
 		return
 	var s := survivor
+	_portrait.show_survivor(s)
 	_name.text = s.full_name() + ("  ★" if s.is_hero else "")
 	var lvl := "Niveau %d" % s.level
 	if s.stat_points > 0:

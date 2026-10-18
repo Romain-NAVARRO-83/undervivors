@@ -26,6 +26,7 @@ var chasing := false
 
 var _alive := true
 var _flash := 0.0
+var _heal_fx := 0.0
 var _t := 0.0
 var _lunge := 0.0
 var _lunge_cooldown := 0.0
@@ -52,6 +53,14 @@ func _ready() -> void:
 
 func is_alive() -> bool:
 	return _alive
+
+
+## Soin (zone d'un générateur actif) ; affiche un petit « + » vert.
+func heal(amount: float) -> void:
+	if not _alive or hp >= max_hp:
+		return
+	hp = minf(hp + amount, max_hp)
+	_heal_fx = 0.35
 
 
 ## Retourne true si le coup a tué le monstre.
@@ -173,6 +182,8 @@ func _separation() -> Vector2:
 func _process(delta: float) -> void:
 	if _flash > 0.0:
 		_flash -= delta
+	if _heal_fx > 0.0:
+		_heal_fx -= delta
 
 
 func _spawn_damage_number(amount: float) -> void:
@@ -216,6 +227,12 @@ func _draw() -> void:
 		var x := -3.0 + k * 3.0
 		draw_colored_polygon(PackedVector2Array([Vector2(x - 1, 5.5), Vector2(x + 1, 5.5), Vector2(x, 7.5)]), Color.WHITE)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Soin en cours : croix verte qui monte
+	if _heal_fx > 0.0:
+		var hy := -34.0 + hop - (0.35 - _heal_fx) * 30.0
+		var gc := Color(0.4, 1.0, 0.45, clampf(_heal_fx * 3.0, 0.0, 1.0))
+		draw_line(Vector2(8, hy - 3), Vector2(8, hy + 3), gc, 2.0)
+		draw_line(Vector2(5, hy), Vector2(11, hy), gc, 2.0)
 	# PV
 	if hp < max_hp:
 		draw_rect(Rect2(-11, -30 + hop, 22, 3), Color(0.2, 0, 0))

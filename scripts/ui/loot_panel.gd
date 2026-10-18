@@ -186,8 +186,7 @@ func _survivor_row(s: Survivor) -> Control:
 	row.add_child(h)
 	var portrait := SurvivorPortrait.new()
 	portrait.custom_minimum_size = Vector2(44, 44)
-	portrait.appearance = s.appearance
-	portrait.is_hero = s.is_hero
+	portrait.show_survivor(s)
 	h.add_child(portrait)
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
