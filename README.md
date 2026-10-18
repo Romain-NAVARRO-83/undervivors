@@ -150,6 +150,7 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - **Tourelles** : arbalète lourde (14 dégâts, 2 tirs/s, portée 430) qui ne tire que si un survivant y est **assigné** et à son poste (clic droit sur la tourelle avec un survivant contrôlé, ou menu Tâche « Servir : Tourelle n°X »). Voyant vert quand elle est servie ; l'XP revient au servant ; badge viseur sur sa vignette.
 - **Alerte (H)** : tous les survivants libres rentrent se poster autour du feu de camp et tirent ; les servants restent à leur tourelle ; à la levée de l'alerte, chacun reprend sa tâche. Bandeau rouge pendant l'alerte.
 - Debug : chantiers instantanés, construction gratuite.
+- (v0.16) Murs et tourelles sont des **blocs iso 2D** à l'empreinte exacte d'une tuile (64×32) et de faible hauteur (mur 18 px, tourelle 24 px) ; collision et contact des monstres suivent le losange.
 
 ## Structure
 

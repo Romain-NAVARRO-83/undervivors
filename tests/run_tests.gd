@@ -283,7 +283,7 @@ func _process(_delta: float) -> bool:
 		# Monstre collé au mur : il le frappe
 		_basher = Mob.new()
 		_basher.posted = true
-		_basher.home = _wall_b.global_position + Vector2(-22, 0)
+		_basher.home = _wall_b.global_position + Vector2(-40, 0)  # contre la pointe ouest du losange
 		_basher.aggro_range = 0.0
 		_basher.position = _basher.home
 		_main.world.add_child(_basher)

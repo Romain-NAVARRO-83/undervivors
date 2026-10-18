@@ -125,7 +125,7 @@ func _physics_process(delta: float) -> void:
 func _attack_building() -> bool:
 	var best: Building = null
 	for b in get_tree().get_nodes_in_group("buildings"):
-		if not b.is_destroyed and global_position.distance_to(b.global_position) < 34.0:
+		if not b.is_destroyed and b.is_touching(global_position):
 			best = b
 			break
 	if best == null:

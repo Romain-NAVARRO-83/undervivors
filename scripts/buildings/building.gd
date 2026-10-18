@@ -32,11 +32,55 @@ func _ready() -> void:
 	hp = max_hp * 0.25  # un chantier est fragile ; les PV montent avec l'avancement
 
 
-## Forme de collision : un losange de la taille d'une case (surchargeable).
+## Demi-dimensions du losange d'une tuile (64 × 32).
+const HW := IsoGround.TILE_W / 2.0
+const HH := IsoGround.TILE_H / 2.0
+
+
+## Forme de collision : exactement le losange de la tuile.
 func _make_shape() -> Shape2D:
 	var poly := ConvexPolygonShape2D.new()
-	poly.points = PackedVector2Array([Vector2(0, -15), Vector2(30, 0), Vector2(0, 15), Vector2(-30, 0)])
+	poly.points = PackedVector2Array([Vector2(0, -HH), Vector2(HW, 0), Vector2(0, HH), Vector2(-HW, 0)])
 	return poly
+
+
+## Vrai si le point touche (ou presque) le losange de la tuile : sert à savoir
+## si un monstre est au contact, quel que soit le côté.
+func is_touching(p: Vector2, margin := 12.0) -> bool:
+	var d := p - global_position
+	return absf(d.x) / (HW + margin) + absf(d.y) / (HH + margin * 0.6) <= 1.0
+
+
+## Vrai si le point (souris) est sur le bloc, hauteur comprise.
+func contains(world_pos: Vector2) -> bool:
+	var d := world_pos - global_position
+	return absf(d.x) / HW + absf(d.y + block_height() * 0.5) / (HH + block_height() * 0.5) <= 1.0
+
+
+## Hauteur du bloc (petite : la construction reste lisible en vue iso).
+func block_height() -> float:
+	return 16.0
+
+
+## Dessine un bloc isométrique sur l'empreinte d'une tuile, de hauteur `h`.
+## Retourne les sommets du dessus [N, E, S, O] pour y ajouter des détails.
+func draw_iso_block(h: float, top: Color, left: Color, right: Color, outline: Color) -> PackedVector2Array:
+	var n := Vector2(0, -HH)
+	var e := Vector2(HW, 0)
+	var s := Vector2(0, HH)
+	var w := Vector2(-HW, 0)
+	var up := Vector2(0, -h)
+	var left_face := PackedVector2Array([w, s, s + up, w + up])
+	var right_face := PackedVector2Array([s, e, e + up, s + up])
+	var top_face := PackedVector2Array([n + up, e + up, s + up, w + up])
+	draw_colored_polygon(left_face, left)
+	draw_colored_polygon(right_face, right)
+	draw_colored_polygon(top_face, top)
+	draw_polyline(PackedVector2Array([w, s, e]), outline, 1.5)
+	draw_polyline(PackedVector2Array([w, w + up, n + up, e + up, e]), outline, 1.5)
+	draw_line(s, s + up, outline, 1.5)
+	draw_polyline(PackedVector2Array([w + up, s + up, e + up]), outline, 1.5)
+	return top_face
 
 
 ## Termine le chantier immédiatement (debug, tests).
@@ -86,9 +130,8 @@ func _destroy() -> void:
 
 
 func _draw() -> void:
-	draw_set_transform(Vector2(0, 2), 0.0, Vector2(1.0, 0.5))
-	draw_circle(Vector2.ZERO, 26.0, Color(0, 0, 0, 0.25))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Ombre portée : losange légèrement décalé
+	draw_colored_polygon(PackedVector2Array([Vector2(4, -HH + 3), Vector2(HW + 5, 3), Vector2(4, HH + 3), Vector2(-HW + 5, 3)]), Color(0, 0, 0, 0.18))
 	if is_built:
 		_draw_built()
 	else:
@@ -102,22 +145,26 @@ func _draw() -> void:
 		draw_rect(Rect2(-20, -_top() - 12, 40 * progress, 5), Color(0.95, 0.75, 0.3))
 
 
-## Hauteur visuelle du sommet (pour placer les barres).
+## Hauteur visuelle du sommet (pour placer les barres au-dessus).
 func _top() -> float:
-	return 30.0
+	return block_height() + HH + 6.0
 
 
-## Chantier : contour au sol et échafaudage qui monte avec l'avancement.
+## Chantier : empreinte au sol, puis une armature de bloc qui monte avec l'avancement.
 func _draw_scaffold() -> void:
-	var base := PackedVector2Array([Vector2(0, -15), Vector2(30, 0), Vector2(0, 15), Vector2(-30, 0), Vector2(0, -15)])
-	draw_polyline(base, Color(0.95, 0.8, 0.4, 0.8), 1.5)
-	var h := _top() * progress
+	var gold := Color(0.95, 0.8, 0.4, 0.85)
+	var base := PackedVector2Array([Vector2(0, -HH), Vector2(HW, 0), Vector2(0, HH), Vector2(-HW, 0), Vector2(0, -HH)])
+	draw_colored_polygon(PackedVector2Array([Vector2(0, -HH), Vector2(HW, 0), Vector2(0, HH), Vector2(-HW, 0)]), Color(0.95, 0.8, 0.4, 0.15))
+	draw_polyline(base, gold, 1.5)
+	var h := block_height() * progress
 	var wood := Color(0.6, 0.45, 0.28)
-	for x in [-18, 0, 18]:
-		draw_line(Vector2(x, 4), Vector2(x, 4 - h), wood, 2.0)
-	if h > 10:
-		draw_line(Vector2(-18, 4 - h * 0.5), Vector2(18, 4 - h * 0.5), wood, 2.0)
-		draw_line(Vector2(-18, 4), Vector2(18, 4 - h), wood.darkened(0.2), 1.5)
+	var up := Vector2(0, -h)
+	for v in [Vector2(-HW, 0), Vector2(0, HH), Vector2(HW, 0), Vector2(0, -HH)]:
+		draw_line(v, v + up, wood, 2.0)
+	if h > 2.0:
+		draw_polyline(PackedVector2Array([Vector2(-HW, 0) + up, Vector2(0, HH) + up, Vector2(HW, 0) + up, Vector2(0, -HH) + up, Vector2(-HW, 0) + up]), wood, 1.5)
+		draw_line(Vector2(-HW, 0), Vector2(0, HH) + up, wood.darkened(0.2), 1.0)
+		draw_line(Vector2(0, HH), Vector2(HW, 0) + up, wood.darkened(0.2), 1.0)
 
 
 ## Construction finie : à surcharger.

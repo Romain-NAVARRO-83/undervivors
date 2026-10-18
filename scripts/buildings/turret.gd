@@ -32,21 +32,22 @@ func _ready() -> void:
 	add_to_group("turrets")
 
 
+func block_height() -> float:
+	return 24.0
+
+
 func _top() -> float:
-	return 52.0
+	return block_height() + HH + 22.0
 
 
-## Point où se tient le servant (sur la plateforme).
+## Point où se tient le servant : juste devant la tourelle, au pied du bloc
+## (le bloc occupe la tuile ; le servant reste visible devant).
 func mount_point() -> Vector2:
-	return global_position + Vector2(0, 2)
+	return global_position + Vector2(0, HH + 6.0)
 
 
 func is_manned() -> bool:
 	return is_built and is_instance_valid(gunner) and gunner.post == self and gunner.manning
-
-
-func contains(world_pos: Vector2) -> bool:
-	return global_position.distance_to(world_pos + Vector2(0, 20)) < 30.0
 
 
 func _process(delta: float) -> void:
@@ -68,7 +69,7 @@ func _process(delta: float) -> void:
 		p.max_distance = FIRE_RANGE + 20.0
 		p.color = Color(0.9, 0.8, 0.55)
 		p.shooter = gunner  # l'XP revient au servant
-		p.global_position = global_position + Vector2(0, -40) + aim_dir * 14.0
+		p.global_position = global_position + Vector2(0, -block_height() - 6.0) + aim_dir * 16.0
 		(world if world else get_parent()).add_child(p)
 
 
@@ -91,25 +92,39 @@ func _destroy() -> void:
 	super._destroy()
 
 
+## Bloc isométrique sur une tuile : socle en pierres, plateforme en planches,
+## arbalète lourde orientée vers la cible.
 func _draw_built() -> void:
-	var wood := _flash_color(Color(0.52, 0.36, 0.2))
-	var dark := Color(0.3, 0.2, 0.12)
-	# Quatre pieds
-	for x in [-16, 16]:
-		draw_line(Vector2(x, 6), Vector2(x * 0.7, -30), dark, 4.0)
-	for x in [-8, 8]:
-		draw_line(Vector2(x, -6), Vector2(x * 0.9, -30), wood.darkened(0.15), 3.0)
-	draw_line(Vector2(-14, -12), Vector2(14, -22), dark, 2.0)
-	draw_line(Vector2(14, -12), Vector2(-14, -22), dark, 2.0)
-	# Plateforme
-	var plat := PackedVector2Array([Vector2(0, -38), Vector2(20, -30), Vector2(0, -22), Vector2(-20, -30)])
-	draw_colored_polygon(plat, wood)
-	draw_polyline(plat + PackedVector2Array([plat[0]]), dark, 1.5)
-	# Arbalète lourde orientée vers la cible
-	var c := Vector2(0, -40)
-	draw_line(c, c + aim_dir * 16.0, Color(0.25, 0.25, 0.27), 4.0)
+	var h := block_height()
+	var stone := _flash_color(Color(0.5, 0.48, 0.44))
+	var dark := Color(0.2, 0.19, 0.18)
+	var top := draw_iso_block(h, Color(0.55, 0.38, 0.22), stone.darkened(0.05), stone.darkened(0.25), dark)
+	# Joints de pierre sur les faces
+	for row in range(1, 3):
+		var y := -h * row / 3.0
+		draw_line(Vector2(-HW, y), Vector2(0, HH + y), dark.lightened(0.15), 1.0)
+		draw_line(Vector2(0, HH + y), Vector2(HW, y), dark, 1.0)
+	for k in range(1, 4):
+		var off := 0.0 if k % 2 == 0 else 0.5
+		var pl := Vector2(-HW, 0).lerp(Vector2(0, HH), (k + off * 0.5) / 4.0)
+		draw_line(pl + Vector2(0, -h / 3.0), pl + Vector2(0, -2.0 * h / 3.0), dark.lightened(0.15), 1.0)
+		var pr := Vector2(0, HH).lerp(Vector2(HW, 0), (k - off * 0.5) / 4.0)
+		draw_line(pr, pr + Vector2(0, -h / 3.0), dark, 1.0)
+	# Planches du dessus
+	for k in range(1, 4):
+		var a: Vector2 = top[0].lerp(top[3], k / 4.0)
+		var b: Vector2 = top[1].lerp(top[2], k / 4.0)
+		draw_line(a, b, Color(0.35, 0.24, 0.14), 1.0)
+	# Arbalète lourde sur pivot, au centre du dessus
+	var c := Vector2(0, -h - 6)
+	draw_line(Vector2(0, -h), c, dark, 3.0)
+	draw_line(c - aim_dir * 6.0, c + aim_dir * 16.0, Color(0.3, 0.22, 0.14), 4.0)
 	var perp := Vector2(-aim_dir.y, aim_dir.x)
-	draw_line(c + aim_dir * 10.0 + perp * 8.0, c + aim_dir * 10.0 - perp * 8.0, dark, 2.0)
-	# Numéro, et voyant : vert = servie, gris = sans servant
-	draw_circle(Vector2(18, -46), 4.0, Color(0.4, 0.9, 0.4) if is_manned() else Color(0.45, 0.45, 0.45))
-	draw_string(ThemeDB.fallback_font, Vector2(-22, -44), str(number), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.85))
+	var bow := c + aim_dir * 11.0
+	draw_polyline(PackedVector2Array([bow + perp * 9.0, bow + aim_dir * 3.0, bow - perp * 9.0]), Color(0.2, 0.18, 0.16), 2.0)
+	# Numéro et voyant : vert = servie, gris = sans servant
+	var lamp := Vector2(HW - 6, -h - 8)
+	draw_circle(lamp, 4.0, dark)
+	draw_circle(lamp, 3.0, Color(0.4, 0.95, 0.4) if is_manned() else Color(0.5, 0.5, 0.5))
+	draw_string_outline(ThemeDB.fallback_font, Vector2(-HW + 2, -h - 4), str(number), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color(0, 0, 0, 0.8))
+	draw_string(ThemeDB.fallback_font, Vector2(-HW + 2, -h - 4), str(number), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
