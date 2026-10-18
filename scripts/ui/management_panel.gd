@@ -5,6 +5,7 @@ extends PanelContainer
 
 signal survivor_selected(survivor: Survivor)
 signal assignment_requested(survivor: Survivor, node: ResourceNode)
+signal squad_toggle_requested(survivor: Survivor)
 
 ## Points de récolte proposés dans le menu « Tâche » des tuiles.
 var resource_nodes: Array = []
@@ -71,6 +72,7 @@ func sync(survivors: Array) -> void:
 			var tile := SurvivorTile.new().setup(s, resource_nodes)
 			tile.select_requested.connect(func(sv): survivor_selected.emit(sv))
 			tile.assignment_requested.connect(func(sv, node): assignment_requested.emit(sv, node))
+			tile.squad_toggle_requested.connect(func(sv): squad_toggle_requested.emit(sv))
 			_grid.add_child(tile)
 			_tiles[s] = tile
 	_title.text = "Survivants (%d)" % survivors.size()

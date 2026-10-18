@@ -33,8 +33,35 @@ func _process(_delta: float) -> bool:
 		var eau: int = _main.stock.get_amount("eau")
 		check(eau >= _worker.carry_capacity(), "eau rapportée au stock (%d)" % eau)
 		check(_worker.task_node != null, "toujours assigné après le dépôt (jusqu'à ordre contraire)")
-		_main.assign_survivor(_worker, null)
-		check(_worker.task_node == null, "survivant libéré")
+		# Escouade : le travailleur reste assigné pour vérifier la reprise de tâche.
+		var m: Array = _main.survivors
+		_main.set_squad_mode(true)
+		check(not _main.squad_mode, "pas de mode escouade sans membres")
+		for i in 5:
+			_main.toggle_squad_member(m[i])
+		check(_main.squad.size() == 4, "escouade limitée à 4 membres")
+		check(not m[4].squad_member, "le 5e n'est pas ajouté")
+		_main.set_squad_mode(true)
+		check(_main.squad_mode and _main.selected == m[0], "mode escouade : le 1er membre mène")
+		check(m[1].following and m[2].following and m[3].following, "les autres suivent")
+		_main._select(m[4])
+		check(_main.selected == m[0], "impossible de prendre un non-membre comme leader")
+		_main._select(m[2])
+		check(_main.selected == m[2] and m[0].following and not m[2].following, "changement de leader")
+		m[2].global_position += Vector2(200, 60)
+	if _frames == 1700:
+		var m: Array = _main.survivors
+		var ok := true
+		for i in [0, 1, 3]:
+			if m[i].global_position.distance_to(m[i].follow_point) > 12.0:
+				ok = false
+		check(ok, "les suiveurs ont rejoint leur place en formation")
+		_main.formation = _main.Formation.LIGNE
+		var offs: Array = _main.formation_offsets(3, Vector2.RIGHT)
+		check(offs.size() == 3 and absf(offs[0].x) < 0.01 and offs[0].y == -offs[1].y, "formation en ligne symétrique")
+		_main.set_squad_mode(false)
+		check(not m[1].following and _main.squad.size() == 4, "fin du mode : composition conservée")
+		check(m[1].task_node == _main.resource_nodes[0] and m[1].activity_text() != "Suit le leader en formation", "le travailleur reprend sa tâche")
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false

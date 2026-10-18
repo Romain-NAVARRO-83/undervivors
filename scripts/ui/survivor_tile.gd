@@ -5,6 +5,9 @@ extends PanelContainer
 
 signal select_requested(survivor: Survivor)
 signal assignment_requested(survivor: Survivor, node: ResourceNode)
+signal squad_toggle_requested(survivor: Survivor)
+
+const SQUAD_MAX := 4
 
 const ROWS := [
 	# [clé de barre, libellé, stat à augmenter avec « + » (vide = aucun)]
@@ -21,6 +24,7 @@ var resource_nodes: Array = []
 var _portrait: SurvivorPortrait
 var _activity: Label
 var _task: OptionButton
+var _squad_btn: Button
 var _name: Label
 var _level: Label
 var _weapon: Label
@@ -74,6 +78,10 @@ func _ready() -> void:
 	titles.add_child(_name)
 	_level = UIStyle.label("", 13, UIStyle.TEXT_DIM)
 	titles.add_child(_level)
+	_squad_btn = UIStyle.button("", 12)
+	_squad_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_squad_btn.pressed.connect(func(): squad_toggle_requested.emit(survivor))
+	titles.add_child(_squad_btn)
 
 	# Barres de stats
 	var grid := GridContainer.new()
@@ -187,6 +195,16 @@ func refresh() -> void:
 	if _task.selected != wanted:
 		_task.select(wanted)
 	_activity.text = "→ " + s.activity_text()
+	var squad_count := get_tree().get_nodes_in_group("squad").size()
+	if s.squad_member:
+		_squad_btn.text = "✓ Escouade n°%d  (retirer)" % (s.squad_index + 1)
+		_squad_btn.disabled = false
+		_squad_btn.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	else:
+		var full := squad_count >= SQUAD_MAX
+		_squad_btn.text = "Escouade complète (4/4)" if full else "+ Ajouter à l'escouade (%d/4)" % squad_count
+		_squad_btn.disabled = full
+		_squad_btn.add_theme_color_override("font_color", UIStyle.TEXT)
 	var style := _style_selected if s.selected else (_style_hover if _hover else _style_normal)
 	add_theme_stylebox_override("panel", style)
 

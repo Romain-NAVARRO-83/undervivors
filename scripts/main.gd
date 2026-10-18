@@ -3,7 +3,19 @@ extends Node2D
 ## Monte le monde, les survivants, les cibles, la mare, le stock, la caméra et le HUD.
 
 const VILLAGE_CENTER := Vector2.ZERO
-const START_SURVIVORS := 4
+const START_SURVIVORS := 5
+const SQUAD_MAX := 4
+const FORMATION_SPACING := 30.0
+
+enum Formation { COLONNE, LIGNE, CERCLE }
+const FORMATION_NAMES := ["Colonne", "Ligne", "Cercle"]
+
+## Escouade enregistrée (GDD 6) : conservée quand on entre et sort du mode escouade.
+var squad: Array[Survivor] = []
+var squad_mode := false
+var formation: Formation = Formation.COLONNE
+var squad_bar: SquadBar
+var _leader_dir := Vector2.DOWN
 
 var world: Node2D
 var camera: Camera2D
@@ -90,6 +102,8 @@ func _register_inputs() -> void:
 		"next_survivor": [KEY_TAB],
 		"deselect": [KEY_ESCAPE],
 		"toggle_panel": [KEY_G],
+		"toggle_squad": [KEY_F],
+		"cycle_formation": [KEY_V],
 	}
 	for action in map:
 		if InputMap.has_action(action):
@@ -109,6 +123,11 @@ func _register_inputs() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_panel"):
 		panel.toggle()
+	elif event.is_action_pressed("toggle_squad"):
+		set_squad_mode(not squad_mode)
+	elif event.is_action_pressed("cycle_formation"):
+		formation = ((formation + 1) % Formation.size()) as Formation
+		_notify("Formation : %s" % FORMATION_NAMES[formation])
 	elif event.is_action_pressed("next_survivor"):
 		_select_next()
 	elif event.is_action_pressed("deselect"):
@@ -120,8 +139,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_on_right_click()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		var n: int = event.physical_keycode - KEY_1
-		if n >= 0 and n < 9 and n < survivors.size():
-			_select(survivors[n])
+		# En mode escouade, 1-4 désignent les membres ; sinon tous les survivants.
+		var pool: Array = squad if squad_mode else survivors
+		if n >= 0 and n < 9 and n < pool.size():
+			_select(pool[n])
 
 
 ## Clic droit : sélectionner le survivant sous la souris, sinon assigner
@@ -147,7 +168,7 @@ func assign_survivor(s: Survivor, node: ResourceNode) -> void:
 	s.assign(node)
 	if node:
 		_notify("%s est assigné·e à : %s" % [s.first_name, node.display_name])
-		if s == selected:
+		if s == selected and not squad_mode:
 			var next: Survivor = null
 			for other in survivors:
 				if other.task_node == null and other != s:
@@ -159,22 +180,130 @@ func assign_survivor(s: Survivor, node: ResourceNode) -> void:
 
 
 func _select(s: Survivor) -> void:
+	# En mode escouade, on ne contrôle que le leader, choisi parmi les membres.
+	if squad_mode and s != null and not squad.has(s):
+		_notify("En mode escouade, choisis le leader parmi les membres (F pour quitter)")
+		return
+	if squad_mode and s == null:
+		return
 	if is_instance_valid(selected):
 		selected.selected = false
+		if squad_mode and squad.has(selected):
+			selected.following = true
 	selected = s
 	if is_instance_valid(selected):
 		selected.selected = true
+		selected.following = false
 
 
 func _select_next() -> void:
-	if survivors.is_empty():
+	var pool: Array = squad if squad_mode else survivors
+	if pool.is_empty():
 		return
-	var idx := survivors.find(selected)
-	_select(survivors[(idx + 1) % survivors.size()])
+	var idx := pool.find(selected)
+	_select(pool[(idx + 1) % pool.size()])
+
+
+# --- Escouade ---------------------------------------------------------------
+
+func _on_squad_member_clicked(s: Survivor) -> void:
+	_select(s)
+
+
+## Ajoute ou retire un survivant de l'escouade enregistrée (4 membres max).
+func toggle_squad_member(s: Survivor) -> void:
+	if squad.has(s):
+		_remove_from_squad(s)
+		_notify("%s quitte l'escouade" % s.first_name)
+	elif squad.size() >= SQUAD_MAX:
+		_notify("L'escouade est complète (%d membres)" % SQUAD_MAX)
+	else:
+		squad.append(s)
+		s.squad_member = true
+		s.following = squad_mode and s != selected
+		_reindex_squad()
+		_notify("%s rejoint l'escouade (%d/%d)" % [s.first_name, squad.size(), SQUAD_MAX])
+
+
+func _remove_from_squad(s: Survivor) -> void:
+	squad.erase(s)
+	s.squad_member = false
+	s.following = false
+	_reindex_squad()
+	if squad_mode:
+		if squad.is_empty():
+			set_squad_mode(false)
+		elif s == selected:
+			s.selected = false
+			selected = null
+			_select(squad[0])
+
+
+func _reindex_squad() -> void:
+	for i in squad.size():
+		squad[i].squad_index = i
+
+
+## Entre ou sort du mode escouade. La composition reste enregistrée.
+func set_squad_mode(on: bool) -> void:
+	if on == squad_mode:
+		return
+	if on:
+		if squad.is_empty():
+			_notify("Compose d'abord une escouade dans le panneau des survivants (G)")
+			return
+		var leader: Survivor = selected if squad.has(selected) else squad[0]
+		squad_mode = true
+		if is_instance_valid(selected) and selected != leader:
+			selected.selected = false
+		selected = null
+		for m in squad:
+			m.following = true
+		_select(leader)
+		_notify("Mode escouade : %s mène le groupe" % leader.first_name)
+	else:
+		squad_mode = false
+		for m in squad:
+			m.following = false  # chacun reprend sa tâche ou son errance
+		_notify("Fin du mode escouade")
+
+
+func _physics_process(_delta: float) -> void:
+	if not squad_mode or not is_instance_valid(selected):
+		return
+	if selected.velocity.length() > 10.0:
+		_leader_dir = selected.velocity.normalized()
+	var followers: Array[Survivor] = []
+	for m in squad:
+		if m != selected:
+			followers.append(m)
+	var offsets := formation_offsets(followers.size(), _leader_dir)
+	for i in followers.size():
+		followers[i].follow_point = selected.global_position + offsets[i]
+		followers[i].follow_speed = selected.move_speed()
+
+
+## Places des suiveurs par rapport au leader, selon la formation et la direction.
+func formation_offsets(n: int, dir: Vector2) -> Array[Vector2]:
+	var perp := Vector2(-dir.y, dir.x)
+	var out: Array[Vector2] = []
+	for i in n:
+		match formation:
+			Formation.COLONNE:
+				out.append(-dir * FORMATION_SPACING * (i + 1))
+			Formation.LIGNE:
+				var side := 1.0 if i % 2 == 0 else -1.0
+				out.append(perp * FORMATION_SPACING * ceilf((i + 1) / 2.0) * side)
+			Formation.CERCLE:
+				var a: float = dir.angle() + PI + TAU * i / maxf(n, 1.0)
+				out.append(Vector2(cos(a), sin(a) * 0.6) * FORMATION_SPACING * 1.4)
+	return out
 
 
 func _on_survivor_died(s: Survivor) -> void:
 	survivors.erase(s)
+	if squad.has(s):
+		_remove_from_squad(s)  # passe le commandement au membre suivant
 	if s == selected:
 		selected = null
 	if survivors.is_empty():
@@ -194,6 +323,7 @@ func _process(_delta: float) -> void:
 	if is_instance_valid(selected):
 		camera.position = selected.global_position
 	panel.sync(survivors)
+	squad_bar.refresh(squad, selected, squad_mode, FORMATION_NAMES[formation])
 	_update_hud()
 
 
@@ -259,11 +389,16 @@ func _build_hud() -> void:
 	panel.resource_nodes = resource_nodes
 	panel.survivor_selected.connect(_select)
 	panel.assignment_requested.connect(assign_survivor)
-	layer.add_child(panel)
+	panel.squad_toggle_requested.connect(toggle_squad_member)
 	toggle.pressed.connect(panel.toggle)
 
+	squad_bar = SquadBar.new()
+	squad_bar.member_clicked.connect(_on_squad_member_clicked)
+	layer.add_child(squad_bar)
+	layer.add_child(panel)  # au-dessus de la barre d'escouade
+
 	var help := Label.new()
-	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : panneau des survivants\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare   Échap : relâcher"
+	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : panneau des survivants   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare   Échap : relâcher"
 	help.add_theme_font_size_override("font_size", 13)
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.anchor_top = 1.0

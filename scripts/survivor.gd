@@ -46,6 +46,21 @@ var task_node: ResourceNode = null
 var carrying: int = 0
 var carrying_type: String = ""
 var work_state: WorkState = WorkState.TO_SOURCE
+## Escouade (GDD 6) : membre de l'escouade enregistrée, et suivi du leader.
+## `following` est vrai pour les suiveurs quand le mode escouade est actif ;
+## `follow_point` est la place en formation, calculée par la scène principale.
+var squad_member: bool = false:
+	set(value):
+		squad_member = value
+		if value:
+			add_to_group("squad")
+		elif is_in_group("squad"):
+			remove_from_group("squad")
+var squad_index: int = 0
+var following: bool = false
+var follow_point: Vector2 = Vector2.ZERO
+var follow_speed: float = 0.0
+
 var _gather_timer := 0.0
 var _gather_angle := 0.0
 var _deposit_offset := Vector2.ZERO
@@ -114,7 +129,10 @@ func assign(node: ResourceNode) -> void:
 ## Texte court décrivant l'activité, pour l'interface.
 func activity_text() -> String:
 	if selected:
-		return "Contrôlé" + (" · porte %d %s" % [carrying, carrying_type] if carrying > 0 else "")
+		var role := "Leader de l'escouade" if squad_member and _is_squad_mode() else "Contrôlé"
+		return role + (" · porte %d %s" % [carrying, carrying_type] if carrying > 0 else "")
+	if following:
+		return "Suit le leader en formation"
 	if task_node == null:
 		return "Dépose %d %s" % [carrying, carrying_type] if carrying > 0 else "Erre au village"
 	match work_state:
@@ -162,6 +180,8 @@ func _physics_process(delta: float) -> void:
 	_cooldown = max(_cooldown - delta, 0.0)
 	if selected:
 		_process_controlled()
+	elif following:
+		_process_follow()
 	else:
 		_process_autonomous(delta)
 	move_and_slide()
@@ -180,6 +200,25 @@ func _process_controlled() -> void:
 	# Le survivant contrôlé dépose aussi sa charge en passant au centre du village.
 	if carrying > 0 and global_position.distance_to(village_center) < 36.0:
 		_deposit()
+
+
+## Suiveur d'escouade : rejoint sa place en formation, tire seul (GDD 6).
+## Sa tâche de récolte est en pause et reprend à la sortie du mode escouade.
+func _process_follow() -> void:
+	var to_slot := follow_point - global_position
+	var dist := to_slot.length()
+	if dist < 4.0:
+		velocity = Vector2.ZERO
+	else:
+		# Rattrape plus vite quand il est loin, ralentit en approchant.
+		var speed := maxf(move_speed(), follow_speed * 1.15)
+		velocity = to_slot.normalized() * minf(speed, dist * 6.0)
+	_autonomous_shooting()
+
+
+func _is_squad_mode() -> bool:
+	var main := get_tree().current_scene
+	return main != null and main.get("squad_mode") == true
 
 
 func _process_autonomous(delta: float) -> void:
@@ -320,7 +359,14 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, 11.0, Color(0, 0, 0, 0.3))
 	if selected:
 		draw_arc(Vector2.ZERO, 16.0, 0.0, TAU, 32, Color(1, 1, 1, 0.9), 2.0)
+	elif squad_member:
+		draw_arc(Vector2.ZERO, 15.0, 0.0, TAU, 32, Color(0.4, 0.75, 1.0, 0.75), 1.5)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Numéro de membre d'escouade au-dessus de la tête
+	if squad_member:
+		var p := Vector2(-15, -40)
+		draw_circle(p, 5.5, Color(0.15, 0.3, 0.45))
+		draw_string(ThemeDB.fallback_font, p + Vector2(-3, 4), str(squad_index + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
 	# Corps (placeholder) : vêtement + tête issue de l'apparence
 	draw_circle(Vector2(0, -12), 9.0, _body_color)
 	if is_hero:
