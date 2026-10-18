@@ -74,7 +74,10 @@ func _ready() -> void:
 	_button(srow, "+1 arme", func(): main.debug_add_random_weapon())
 
 	_section(root, "Monde")
-	_button(root, "Faire réapparaître les coffres", func(): main.respawn_chests())
+	var mg := _grid(root)
+	_button(mg, "Réapparition coffres", func(): main.respawn_chests())
+	_button(mg, "Replacer les ennemis", func(): main.setup_map_enemies())
+	_button(mg, "Détruire générateurs", func(): main.debug_destroy_spawners())
 	var trow := HBoxContainer.new()
 	trow.add_theme_constant_override("separation", 6)
 	root.add_child(trow)
@@ -115,7 +118,15 @@ func _process(_delta: float) -> void:
 	if not visible or main == null:
 		return
 	var wm: WaveManager = main.wave_manager
-	var t := "Vague n°%d  ·  monstres en vie : %d" % [wm.wave_number, wm.alive_count()]
+	var gens := 0
+	for sp in main.get_tree().get_nodes_in_group("spawners"):
+		if not sp.is_destroyed:
+			gens += 1
+	var total := 0
+	for m in main.get_tree().get_nodes_in_group("mobs"):
+		if m.is_alive():
+			total += 1
+	var t := "Vague n°%d (%d en vie)  ·  monstres sur la carte : %d\nGénérateurs actifs : %d" % [wm.wave_number, wm.alive_count(), total, gens]
 	if wm.auto_waves:
 		t += "\nProchaine vague auto dans %d s" % ceili(wm.time_to_next_auto_wave())
 	t += "\nFPS %d  ·  vitesse ×%d" % [Engine.get_frames_per_second(), int(Engine.time_scale)]

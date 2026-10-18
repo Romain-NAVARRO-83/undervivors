@@ -31,6 +31,13 @@ var panel: ManagementPanel
 var debug_panel: DebugPanel
 var wave_manager: WaveManager
 ## Coffres de loot (GDD 8 bis) : on tire dessus pour les casser.
+## Ennemis postés sur la carte (camps) et générateurs de bots.
+const ENEMY_CAMPS := [
+	[Vector2(340, -270), 3],
+	[Vector2(-460, -200), 3],
+	[Vector2(480, 130), 2],    # gardent le coffre de l'est
+]
+const SPAWNER_POSITIONS := [Vector2(580, -190), Vector2(-660, -40)]
 const CHEST_POSITIONS := [Vector2(-430, -80), Vector2(170, -300), Vector2(440, 170), Vector2(-60, 290)]
 var loot_panel: LootPanel
 var survivors: Array[Survivor] = []
@@ -93,6 +100,7 @@ func _ready() -> void:
 	world.add_child(pickup)
 
 	respawn_chests()
+	setup_map_enemies()
 
 	camera = Camera2D.new()
 	camera.zoom = Vector2(1.6, 1.6)
@@ -398,6 +406,41 @@ func respawn_chests() -> void:
 			chest.world = world
 			chest.position = pos
 			world.add_child(chest)
+
+
+## (Re)place les ennemis postés et les générateurs de bots.
+func setup_map_enemies() -> void:
+	for m in get_tree().get_nodes_in_group("mobs"):
+		if m.posted:
+			m.queue_free()
+	for sp in get_tree().get_nodes_in_group("spawners"):
+		sp.queue_free()
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for camp in ENEMY_CAMPS:
+		var home: Vector2 = camp[0]
+		for i in camp[1]:
+			var m := Mob.new()
+			m.posted = true
+			m.home = home
+			m.aggro_range = 200.0
+			m.village_center = VILLAGE_CENTER
+			m.position = home + Vector2(rng.randf_range(-30, 30), rng.randf_range(-15, 15))
+			world.add_child(m)
+	for pos in SPAWNER_POSITIONS:
+		var sp := MobSpawner.new()
+		sp.world = world
+		sp.village_center = VILLAGE_CENTER
+		sp.position = pos
+		sp.destroyed.connect(func(_s): _notify("Générateur détruit ! Éliminez ses derniers bots."))
+		sp.zone_secured.connect(func(_s): _notify("Zone sécurisée"))
+		world.add_child(sp)
+
+
+func debug_destroy_spawners() -> void:
+	for sp in get_tree().get_nodes_in_group("spawners"):
+		if not sp.is_destroyed:
+			sp.take_damage(99999.0)
 
 
 func debug_recruit() -> void:

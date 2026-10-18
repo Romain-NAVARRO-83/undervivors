@@ -17,6 +17,9 @@ var _pickups_before := 0
 var _wave: Array = []
 var _wave_dist := 0.0
 var _cleared := false
+var _spawner: MobSpawner
+var _bait: Survivor
+var _bot: Mob
 
 
 func _init() -> void:
@@ -156,6 +159,38 @@ func _process(_delta: float) -> bool:
 		check(_main.wave_manager.alive_count() == 0 and _cleared, "tuer tous les monstres : vague repoussée")
 		_main.debug_panel.toggle()
 		check(_main.debug_panel.visible, "panneau debug ouvert")
+		# Ennemis postés et générateurs : on replace tout puis on teste.
+		_main.setup_map_enemies()
+	if _frames == 2705:
+		var sp: MobSpawner = _main.get_tree().get_nodes_in_group("spawners")[0]
+		_spawner = sp
+		check(_main.get_tree().get_nodes_in_group("spawners").size() == 2, "2 générateurs sur la carte")
+		var posted := 0
+		for m in _main.get_tree().get_nodes_in_group("mobs"):
+			if m.posted:
+				posted += 1
+		check(posted >= 8, "%d ennemis postés dans les camps" % posted)
+		for i in 6:
+			sp.spawn_mob()
+		check(sp.alive_mobs() == sp.max_alive, "le générateur plafonne à %d bots" % sp.max_alive)
+		# Laisse : un survivant s'approche d'un bot, le bot le poursuit.
+		_bait = _main.survivors[4]
+		_main._select(_bait)  # contrôlé : il reste où on le met
+		_bot = sp._mobs[0]
+		_bait.global_position = _bot.global_position + Vector2(90, 0)
+	if _frames == 2740:
+		check(_bot.chasing, "le bot poursuit le survivant qui s'approche")
+		_bait.global_position = _bot.home + Vector2(-900, 300)
+	if _frames == 3200:
+		check(not _bot.chasing and _bot.global_position.distance_to(_bot.home) <= _bot.wander_radius + 20.0, "survivant trop loin : le bot abandonne et rentre (%.0f px de chez lui)" % _bot.global_position.distance_to(_bot.home))
+		_spawner.take_damage(99999.0)
+		check(_spawner.is_destroyed and _spawner.spawn_mob() == null, "générateur détruit : plus de production")
+		check(not _spawner.is_secured, "zone pas encore sécurisée tant que ses bots vivent")
+		for m in _spawner._mobs:
+			if is_instance_valid(m) and m.is_alive():
+				m.take_damage(9999.0)
+		check(_spawner.is_secured, "ses bots éliminés : zone sécurisée")
+	if _frames == 3201:
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false

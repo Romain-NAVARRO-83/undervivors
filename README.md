@@ -107,6 +107,13 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
   - Monde : faire réapparaître les coffres, vitesse du jeu ×1 / ×2 / ×4.
   - Infos : numéro de vague, monstres en vie, FPS.
 
+## Ajouts v0.11 : ennemis postés et générateurs
+
+- **Ennemis postés** : 3 camps sur la carte (dont un qui garde le coffre de l'est). Chaque monstre erre autour de son point d'attache, poursuit un survivant qui s'approche (≈ 200 px), puis abandonne et rentre s'il est entraîné trop loin de chez lui.
+- **Générateurs de bots** (2, au nord-est et à l'ouest) : pylône au noyau lumineux qui produit un bot toutes les 7 s, 4 en vie au maximum, dans une zone marquée en pointillés rouges. 220 PV, 100 XP.
+- Détruire un générateur arrête définitivement la production (zone orange) ; quand ses derniers bots sont morts, la zone est **sécurisée** (pointillés verts).
+- Debug (F1) : replacer les ennemis, détruire les générateurs, compteurs de monstres et de générateurs.
+
 ## Structure
 
 ```
@@ -118,6 +125,7 @@ scripts/weapon_data.gd    ressource « arme » (dégâts, cadence, dispersion, �
 scripts/projectile.gd     projectile
 scripts/mob.gd            monstre de base (sans dégâts pour l'instant)
 scripts/wave_manager.gd   vagues de monstres
+scripts/mob_spawner.gd    générateur de bots
 scripts/iso_ground.gd     sol isométrique placeholder
 scripts/survivor_appearance.gd  apparence aléatoire et dessin du visage
 scripts/resource_node.gd  points de récolte (mare, cocotiers)

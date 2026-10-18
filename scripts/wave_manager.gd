@@ -28,9 +28,10 @@ func _ready() -> void:
 	_rng.randomize()
 
 
+## Monstres des vagues encore en vie (hors ennemis postés).
 func alive_count() -> int:
 	var n := 0
-	for m in get_tree().get_nodes_in_group("mobs"):
+	for m in get_tree().get_nodes_in_group("wave_mobs"):
 		if m.is_alive():
 			n += 1
 	return n
@@ -50,12 +51,14 @@ func spawn_wave(count := 5, direction := "Aléatoire") -> Array[Mob]:
 		m.village_center = village_center
 		m.position = center + perp * (i - (count - 1) / 2.0) * 26.0 + dir * _rng.randf_range(-20, 20)
 		m.died.connect(_on_mob_died)
+		m.add_to_group("wave_mobs")
 		world.add_child(m)
 		mobs.append(m)
 	wave_started.emit(wave_number, count, direction)
 	return mobs
 
 
+## Tue tous les monstres de la carte (vagues et ennemis postés).
 func kill_all() -> void:
 	for m in get_tree().get_nodes_in_group("mobs"):
 		if m.is_alive():

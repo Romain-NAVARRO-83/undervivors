@@ -1,8 +1,10 @@
 class_name Mob
 extends CharacterBody2D
-## Monstre de base (placeholder de créature). Il chasse le survivant le plus
-## proche, ou marche vers le village s'il n'en voit aucun. Pour l'instant il
-## ne fait PAS de dégâts : il se jette sur sa cible sans la blesser.
+## Monstre de base (placeholder de créature). Pour l'instant il ne fait PAS de
+## dégâts : il se jette sur sa cible sans la blesser. Deux comportements :
+## - Vague : chasse le survivant le plus proche, sinon marche vers le village.
+## - Posté (`posted = true`) : erre autour de `home` ; poursuit un survivant qui
+##   s'approche, mais abandonne au-delà de `leash_range` de chez lui et y revient.
 
 signal died(mob: Mob)
 
@@ -12,6 +14,15 @@ signal died(mob: Mob)
 var xp_reward: int = 20
 var hp: float = 30.0
 var village_center := Vector2.ZERO
+
+## Ennemi posté (GDD : ennemis placés sur la carte et issus des générateurs).
+var posted := false
+var home := Vector2.ZERO
+@export var wander_radius: float = 70.0
+@export var leash_range: float = 340.0
+var _wander_target := Vector2.ZERO
+var _wander_wait := 0.0
+var chasing := false
 
 var _alive := true
 var _flash := 0.0
@@ -73,6 +84,9 @@ func _physics_process(delta: float) -> void:
 	_t += delta
 	_lunge = maxf(_lunge - delta, 0.0)
 	_lunge_cooldown -= delta
+	if posted:
+		_process_posted(delta)
+		return
 	var target := _nearest_survivor()
 	var goal: Vector2 = target.global_position if target else village_center
 	var to_goal := goal - global_position
@@ -88,6 +102,45 @@ func _physics_process(delta: float) -> void:
 		velocity = dir * speed + _separation() * 40.0
 	else:
 		velocity = Vector2.ZERO
+	move_and_slide()
+	queue_redraw()
+
+
+func _process_posted(delta: float) -> void:
+	var target := _nearest_survivor()
+	# Poursuite limitée : la cible doit rester à portée de laisse de chez lui.
+	if target and target.global_position.distance_to(home) > leash_range:
+		target = null
+	if global_position.distance_to(home) > leash_range + 40.0:
+		target = null  # trop loin : il rentre, même s'il voit quelqu'un
+	chasing = target != null
+	if target:
+		var to_t: Vector2 = target.global_position - global_position
+		if to_t.length() < 20.0:
+			velocity = Vector2.ZERO
+			if _lunge_cooldown <= 0.0:
+				_lunge = 0.25
+				_lunge_cooldown = 1.2
+		else:
+			velocity = to_t.normalized() * speed + _separation() * 40.0
+	elif global_position.distance_to(home) > wander_radius + 12.0:
+		# Retour au point d'attache
+		velocity = (home - global_position).normalized() * speed * 0.9
+		_wander_wait = 0.0
+	else:
+		# Errance sur une petite distance
+		if _wander_wait > 0.0:
+			_wander_wait -= delta
+			velocity = Vector2.ZERO
+		else:
+			var to_w := _wander_target - global_position
+			if _wander_target == Vector2.ZERO or to_w.length() < 5.0:
+				var a := _rng.randf() * TAU
+				_wander_target = home + Vector2(cos(a), sin(a) * 0.55) * _rng.randf_range(10.0, wander_radius)
+				_wander_wait = _rng.randf_range(0.8, 2.5)
+				velocity = Vector2.ZERO
+			else:
+				velocity = to_w.normalized() * speed * 0.45
 	move_and_slide()
 	queue_redraw()
 
