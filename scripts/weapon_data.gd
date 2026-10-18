@@ -22,6 +22,11 @@ enum Element { AUCUN, FEU, GLACE, ELECTRIQUE, POISON }
 @export var projectile_color: Color = Color(0.85, 0.8, 0.7)
 
 
+## Dégâts par seconde théoriques (tous les projectiles touchent), pour comparer.
+func dps() -> float:
+	return (damage + element_damage) * bullets_per_shot * fire_rate
+
+
 func cooldown() -> float:
 	return 1.0 / max(fire_rate, 0.01)
 

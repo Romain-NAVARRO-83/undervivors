@@ -108,6 +108,19 @@ func _process(_delta: float) -> bool:
 	if _frames == 2250:
 		var n: int = _main.get_tree().get_nodes_in_group("item_pickups").size() - _pickups_before
 		check(n >= 1 and n <= 3, "%d objet(s) au sol après le coffre" % n)
+	if _frames == 2260:
+		# Panneau des objets : sélection puis équipement depuis l'interface.
+		var lp: LootPanel = _main.loot_panel
+		var taser: WeaponData = load("res://data/weapons/taser.tres")
+		_main.stock.add_item(taser)
+		_main._toggle_loot()
+		check(lp.visible and not _main.panel.visible, "panneau des objets ouvert (et seul)")
+		lp.select_item(taser)
+		var who: Survivor = _main.survivors[4]
+		lp.equip(who)
+		check(who.weapon == taser, "équipé depuis le panneau des objets")
+	if _frames == 2270:
+		check(_main.loot_panel._items_box.get_child_count() >= 1, "le panneau liste les objets du stock")
 	if _frames == 2300:
 		var t: Survivor = _main.survivors[4]
 		check(t.thirst >= Survivor.NEED_REFILLED - 5.0, "a bu au stock (eau %.0f)" % t.thirst)
@@ -236,6 +249,16 @@ func test_inventory() -> void:
 		if r.size() < 1 or r.size() > 3:
 			ok = false
 	check(ok, "un coffre donne 1 à 3 objets")
+	# Stock commun : équiper / ranger
+	var harpoon: WeaponData = load("res://data/weapons/harpoon.tres")
+	st.add_item(harpoon)
+	var before := st.items.size()
+	check(s.equip_from_stock(harpoon) and s.weapon == harpoon, "équiper une arme du stock")
+	check(st.items.size() == before and st.count_item(pistol) >= 1, "l'ancienne arme retourne au stock")
+	check(not s.equip_from_stock(harpoon), "impossible d'équiper une arme absente du stock")
+	check(s.unequip_to_stock() and s.has_only_slingshot() and st.count_item(harpoon) == 1, "ranger : arme au stock, retour au lance-pierre")
+	check(not s.unequip_to_stock(), "le lance-pierre ne se range pas")
+	check(harpoon.dps() > load("res://data/weapons/slingshot.tres").dps(), "le harpon fait plus de dégâts/s que le lance-pierre")
 	s.free()
 	st.free()
 

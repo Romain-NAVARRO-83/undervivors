@@ -171,6 +171,26 @@ func try_pick_up(item: Resource) -> bool:
 	return true
 
 
+## Équipe une arme prise dans le stock commun ; l'arme actuelle y retourne
+## (sauf le lance-pierre, toujours disponible). Retourne false si l'arme n'est plus en stock.
+func equip_from_stock(item: WeaponData) -> bool:
+	if stock == null or not stock.remove_item(item):
+		return false
+	if not has_only_slingshot():
+		stock.add_item(weapon)
+	equip(item)
+	return true
+
+
+## Range l'arme équipée dans le stock commun et reprend le lance-pierre.
+func unequip_to_stock() -> bool:
+	if stock == null or has_only_slingshot():
+		return false
+	stock.add_item(weapon)
+	equip(load(SLINGSHOT_PATH))
+	return true
+
+
 ## Au feu de camp : le contenu du sac rejoint le stock d'objets commun.
 func _deposit_inventory() -> void:
 	if inventory.is_empty() or stock == null:

@@ -38,5 +38,28 @@ func add_item(item: Resource) -> void:
 	items_changed.emit()
 
 
+## Retire un exemplaire de l'objet ; false s'il n'est pas en stock.
+func remove_item(item: Resource) -> bool:
+	var i := items.find(item)
+	if i < 0:
+		return false
+	items.remove_at(i)
+	items_changed.emit()
+	return true
+
+
+func count_item(item: Resource) -> int:
+	return items.count(item)
+
+
+## Objets distincts du stock, dans l'ordre d'arrivée.
+func distinct_items() -> Array[Resource]:
+	var out: Array[Resource] = []
+	for it in items:
+		if not out.has(it):
+			out.append(it)
+	return out
+
+
 func get_amount(resource_type: String) -> int:
 	return amounts.get(resource_type, 0)

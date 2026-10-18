@@ -24,6 +24,7 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 | Panneau des survivants | G, ou bouton en haut à droite |
 | Mode escouade on/off | F |
 | Changer de formation | V |
+| Stock d'objets (équiper / ranger) | I, ou bouton en haut à droite |
 
 ## Contenu du prototype v0.1
 
@@ -87,6 +88,13 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Le sac est vidé dans le stock d'objets commun en passant au feu de camp (compteur « Objets » en haut). Mort en route = sac perdu.
 - Les coffres ne sont pas des ennemis : le tir autonome ne les vise pas.
 
+## Ajouts v0.9 : stock d'objets
+
+- Panneau **Objets (I)** : à gauche les armes rapportées au village (regroupées, avec leurs stats et ≈ dégâts/s) ; à droite les survivants avec leur arme actuelle.
+- Clic sur une arme pour la sélectionner, puis **Équiper** sur un survivant : son ancienne arme retourne au stock (le lance-pierre, lui, est toujours disponible).
+- **Ranger** rend l'arme au stock et redonne le lance-pierre.
+- Avec une arme sélectionnée, chaque survivant affiche le gain ou la perte de dégâts/s (vert / rouge).
+
 ## Structure
 
 ```
@@ -106,6 +114,7 @@ scripts/speech_bubble.gd  bulle de dialogue (phylactère)
 scripts/loot_chest.gd     coffre de loot cassable
 scripts/loot_table.gd     tirage du contenu des coffres
 scripts/item_pickup.gd    objet au sol, ramassage
+scripts/ui/loot_panel.gd  panneau du stock d'objets
 scripts/ui/               interface : panneau de gestion, tuiles, vignettes, styles
 data/weapons/*.tres       armes, modifiables dans l'inspecteur de Godot
 tests/run_tests.gd        tests automatisés

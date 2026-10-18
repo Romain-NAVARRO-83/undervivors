@@ -28,6 +28,7 @@ var hud_portrait: SurvivorPortrait
 var stock_label: Label
 var notice_label: Label
 var panel: ManagementPanel
+var loot_panel: LootPanel
 var survivors: Array[Survivor] = []
 var resource_nodes: Array[ResourceNode] = []
 var selected: Survivor = null
@@ -124,6 +125,7 @@ func _register_inputs() -> void:
 		"next_survivor": [KEY_TAB],
 		"deselect": [KEY_ESCAPE],
 		"toggle_panel": [KEY_G],
+		"toggle_loot": [KEY_I],
 		"toggle_squad": [KEY_F],
 		"cycle_formation": [KEY_V],
 		"debug_needs": [KEY_F10],
@@ -145,7 +147,9 @@ func _register_inputs() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_panel"):
-		panel.toggle()
+		_toggle_panel()
+	elif event.is_action_pressed("toggle_loot"):
+		_toggle_loot()
 	elif event.is_action_pressed("toggle_squad"):
 		set_squad_mode(not squad_mode)
 	elif event.is_action_pressed("debug_needs"):
@@ -160,8 +164,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("next_survivor"):
 		_select_next()
 	elif event.is_action_pressed("deselect"):
-		if panel.visible:
+		if panel.visible or loot_panel.visible:
 			panel.visible = false
+			loot_panel.visible = false
 		else:
 			release_control()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -373,6 +378,17 @@ func _process(delta: float) -> void:
 	_update_hud()
 
 
+## Les deux panneaux (survivants, objets) ne s'affichent pas en même temps.
+func _toggle_panel() -> void:
+	loot_panel.visible = false
+	panel.toggle()
+
+
+func _toggle_loot() -> void:
+	panel.visible = false
+	loot_panel.toggle()
+
+
 func _notify(text: String) -> void:
 	notice_label.text = text
 	notice_label.modulate.a = 1.0
@@ -436,15 +452,30 @@ func _build_hud() -> void:
 	panel.survivor_selected.connect(_select)
 	panel.assignment_requested.connect(assign_survivor)
 	panel.squad_toggle_requested.connect(toggle_squad_member)
-	toggle.pressed.connect(panel.toggle)
+	toggle.pressed.connect(_toggle_panel)
+
+	var loot_btn := UIStyle.button("Objets  [I]", 15)
+	loot_btn.anchor_left = 1.0
+	loot_btn.anchor_right = 1.0
+	loot_btn.offset_left = -300
+	loot_btn.offset_right = -180
+	loot_btn.offset_top = 12
+	loot_btn.offset_bottom = 48
+	layer.add_child(loot_btn)
+	loot_panel = LootPanel.new()
+	loot_panel.survivors = survivors
+	loot_panel.message.connect(_notify)
+	loot_btn.pressed.connect(_toggle_loot)
 
 	squad_bar = SquadBar.new()
 	squad_bar.member_clicked.connect(_on_squad_member_clicked)
 	layer.add_child(squad_bar)
 	layer.add_child(panel)  # au-dessus de la barre d'escouade
+	layer.add_child(loot_panel)
+	loot_panel.setup(stock)
 
 	var help := Label.new()
-	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : panneau des survivants   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare / aux cocotiers   Échap : relâcher (caméra libre)"
+	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : survivants   I : objets   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare / aux cocotiers   Échap : relâcher (caméra libre)"
 	help.add_theme_font_size_override("font_size", 13)
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.anchor_top = 1.0
