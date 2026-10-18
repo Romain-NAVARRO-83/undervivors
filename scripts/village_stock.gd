@@ -7,10 +7,14 @@ signal changed(resource_type: String, amount: int)
 const LABELS := {"eau": "Eau", "nourriture": "Nourriture"}
 
 var amounts := {"eau": 0, "nourriture": 0}
+## Totaux cumulés depuis le début (statistiques, tests).
+var total_added := {}
+var total_taken := {}
 
 
 func add(resource_type: String, amount: int) -> void:
 	amounts[resource_type] = amounts.get(resource_type, 0) + amount
+	total_added[resource_type] = total_added.get(resource_type, 0) + amount
 	changed.emit(resource_type, amounts[resource_type])
 
 
@@ -19,6 +23,7 @@ func take(resource_type: String, amount: int) -> int:
 	var available: int = amounts.get(resource_type, 0)
 	var taken := mini(available, amount)
 	amounts[resource_type] = available - taken
+	total_taken[resource_type] = total_taken.get(resource_type, 0) + taken
 	if taken > 0:
 		changed.emit(resource_type, amounts[resource_type])
 	return taken

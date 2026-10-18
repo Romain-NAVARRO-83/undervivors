@@ -16,6 +16,8 @@ const ROWS := [
 	["precision", "Précision", "precision"],
 	["force", "Force", "force"],
 	["xp", "XP", ""],
+	["eau", "Eau", ""],
+	["nourriture", "Nourriture", ""],
 ]
 
 var survivor: Survivor
@@ -183,6 +185,8 @@ func refresh() -> void:
 	_set_bar("precision", s.accuracy, Survivor.STAT_MAX, str(s.accuracy))
 	_set_bar("force", s.strength, Survivor.STAT_MAX, str(s.strength))
 	_set_bar("xp", s.xp_in_level(), Survivor.XP_PER_LEVEL, "%d / %d" % [s.xp_in_level(), Survivor.XP_PER_LEVEL])
+	_set_bar("eau", s.thirst, Survivor.NEED_MAX, "%d %%%s" % [int(s.thirst), "  · manque !" if s.thirst < Survivor.NEED_LOW else ""])
+	_set_bar("nourriture", s.hunger, Survivor.NEED_MAX, "%d %%%s" % [int(s.hunger), "  · manque !" if s.hunger < Survivor.NEED_LOW else ""])
 	for key in _plus:
 		# On masque sans retirer du GridContainer (sinon les colonnes se décalent).
 		var b: Button = _plus[key]

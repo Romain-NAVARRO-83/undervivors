@@ -17,6 +17,8 @@ const BAR_COLORS := {
 	"precision": Color(0.85, 0.75, 0.35),
 	"force": Color(0.75, 0.48, 0.30),
 	"xp": Color(0.55, 0.45, 0.85),
+	"eau": Color(0.30, 0.58, 0.85),
+	"nourriture": Color(0.55, 0.70, 0.30),
 }
 
 

@@ -61,6 +61,23 @@ var following: bool = false
 var follow_point: Vector2 = Vector2.ZERO
 var follow_speed: float = 0.0
 
+## Besoins (GDD 9) : jauges d'eau et de nourriture, de 0 (manque) à 100 (rassasié).
+const NEED_MAX := 100.0
+const THIRST_DECAY := 100.0 / 240.0   # jauge d'eau vide en 4 minutes
+const HUNGER_DECAY := 100.0 / 360.0   # jauge de nourriture vide en 6 minutes
+const NEED_LOW := 30.0                # en dessous : il réclame et va au stock
+const NEED_REFILLED := 80.0           # au-dessus : il cesse d'aller au stock
+const REFILL_PER_UNIT := 25.0         # une unité du stock rend 25 points
+const EMPTY_SLOWDOWN := 0.6           # jauge vide : vitesse × 0,6
+const NEED_RESOURCE := {"eau": "thirst", "nourriture": "hunger"}
+
+var thirst: float = NEED_MAX
+var hunger: float = NEED_MAX
+var bubble: SpeechBubble
+var _bubble_cooldown := 0.0
+var _refill_cooldown := 0.0
+var _refilling := false
+
 var _gather_timer := 0.0
 var _gather_angle := 0.0
 var _deposit_offset := Vector2.ZERO
@@ -98,12 +115,21 @@ func _ready() -> void:
 		strength += 2
 	hp = max_hp
 	_body_color = appearance.shirt_color
+	thirst = _rng.randf_range(60.0, NEED_MAX)
+	hunger = _rng.randf_range(60.0, NEED_MAX)
+	_bubble_cooldown = _rng.randf_range(0.0, 3.0)
+	bubble = SpeechBubble.new()
+	add_child(bubble)
 	_pick_wander_target()
 
 
 ## Vitesse de déplacement en px/s : 150 pour une stat de 5.
 func move_speed() -> float:
-	return 110.0 + speed_stat * 8.0
+	var base := 110.0 + speed_stat * 8.0
+	# Jauge d'eau ou de nourriture vide : ralenti (GDD 9).
+	if thirst <= 0.0 or hunger <= 0.0:
+		base *= EMPTY_SLOWDOWN
+	return base
 
 
 ## Multiplicateur de dispersion : 1 pour une précision de 5, plus serré au-delà.
@@ -133,6 +159,8 @@ func activity_text() -> String:
 		return role + (" · porte %d %s" % [carrying, carrying_type] if carrying > 0 else "")
 	if following:
 		return "Suit le leader en formation"
+	if _refilling:
+		return "Va boire et manger au village"
 	if task_node == null:
 		return "Dépose %d %s" % [carrying, carrying_type] if carrying > 0 else "Erre au village"
 	match work_state:
@@ -178,6 +206,7 @@ func full_name() -> String:
 
 func _physics_process(delta: float) -> void:
 	_cooldown = max(_cooldown - delta, 0.0)
+	_update_needs(delta)
 	if selected:
 		_process_controlled()
 	elif following:
@@ -197,9 +226,93 @@ func _process_controlled() -> void:
 	# Pas de tir quand la souris survole l'interface (panneau, boutons).
 	if Input.is_action_pressed("shoot") and get_viewport().gui_get_hovered_control() == null:
 		try_shoot(aim_dir)
-	# Le survivant contrôlé dépose aussi sa charge en passant au centre du village.
-	if carrying > 0 and global_position.distance_to(village_center) < 36.0:
-		_deposit()
+
+
+
+# --- Besoins : faim et soif -------------------------------------------------
+
+func _update_needs(delta: float) -> void:
+	thirst = maxf(thirst - THIRST_DECAY * delta, 0.0)
+	hunger = maxf(hunger - HUNGER_DECAY * delta, 0.0)
+	# En passant au centre du village : on dépose, puis on boit et mange au stock.
+	_refill_cooldown -= delta
+	if global_position.distance_to(village_center) < 40.0:
+		if carrying > 0:
+			_deposit()
+		if _refill_cooldown <= 0.0:
+			_refill_cooldown = 1.0
+			_refill("eau")
+			_refill("nourriture")
+	_update_complaints(delta)
+
+
+## Prend au stock ce qu'il faut pour remonter la jauge (s'il y en a).
+func _refill(resource_type: String) -> void:
+	if stock == null:
+		return
+	var prop: String = NEED_RESOURCE[resource_type]
+	var level: float = get(prop)
+	if level >= NEED_REFILLED:
+		return
+	var units := ceili((NEED_MAX - level) / REFILL_PER_UNIT)
+	var taken := stock.take(resource_type, units)
+	if taken > 0:
+		set(prop, minf(level + taken * REFILL_PER_UNIT, NEED_MAX))
+
+
+## Vrai si le survivant doit aller au stock pour boire ou manger
+## (seulement s'il y a de quoi : un stock vide ne change rien, GDD 9).
+func needs_refill() -> bool:
+	if stock == null:
+		return false
+	return (thirst < NEED_LOW and stock.get_amount("eau") > 0) \
+		or (hunger < NEED_LOW and stock.get_amount("nourriture") > 0)
+
+
+func _going_to_refill() -> bool:
+	# Une fois parti, il y va jusqu'à être servi ou que le stock soit vide.
+	if needs_refill():
+		_refilling = true
+	elif _refilling:
+		var still := (thirst < NEED_REFILLED and stock.get_amount("eau") > 0) \
+			or (hunger < NEED_REFILLED and stock.get_amount("nourriture") > 0)
+		_refilling = still
+	return _refilling
+
+
+const LINES_THIRST := [
+	"J'ai soif…", "De l'eau, vite !", "Ma langue colle au palais.",
+	"Je boirais même l'eau de la mare.", "Quelqu'un a pensé à l'eau ?",
+]
+const LINES_HUNGER := [
+	"J'ai faim…", "Je mangerais un crabe cru.", "Mon ventre fait des bruits de raid.",
+	"Le prochain qui parle de nourriture, je le mange.", "On mange quand, au juste ?",
+]
+const LINES_BOTH := ["J'ai faim ET soif. Super séjour.", "Ni à boire ni à manger… charmant."]
+const LINES_EMPTY := ["Je… n'avance plus…", "Je vais m'écrouler, là.", "C'est la fin, je le sens."]
+const LINES_STOCK_EMPTY := ["Le stock est vide ?!", "Il n'y a plus rien au village…"]
+
+
+## Bulle de dialogue quand l'eau ou la nourriture manque.
+func _update_complaints(delta: float) -> void:
+	_bubble_cooldown -= delta
+	if _bubble_cooldown > 0.0 or bubble == null:
+		return
+	var thirsty := thirst < NEED_LOW
+	var hungry := hunger < NEED_LOW
+	if not thirsty and not hungry:
+		return
+	var lines: Array
+	if thirst <= 0.0 or hunger <= 0.0:
+		lines = LINES_EMPTY
+	elif thirsty and hungry:
+		lines = LINES_BOTH
+	elif thirsty:
+		lines = LINES_THIRST if stock == null or stock.get_amount("eau") > 0 or _rng.randf() < 0.6 else LINES_STOCK_EMPTY
+	else:
+		lines = LINES_HUNGER if stock == null or stock.get_amount("nourriture") > 0 or _rng.randf() < 0.6 else LINES_STOCK_EMPTY
+	bubble.say(lines[_rng.randi_range(0, lines.size() - 1)], 3.0)
+	_bubble_cooldown = _rng.randf_range(7.0, 12.0)
 
 
 ## Suiveur d'escouade : rejoint sa place en formation, tire seul (GDD 6).
@@ -222,7 +335,10 @@ func _is_squad_mode() -> bool:
 
 
 func _process_autonomous(delta: float) -> void:
-	if task_node != null or carrying > 0:
+	if _going_to_refill():
+		# Assoiffé ou affamé : il va au stock de lui-même (GDD 9), puis reprend.
+		_move_towards(village_center + _deposit_offset, move_speed() * 0.8)
+	elif task_node != null or carrying > 0:
 		_process_work(delta)
 	else:
 		_process_wander(delta)

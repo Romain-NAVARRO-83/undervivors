@@ -107,6 +107,7 @@ func _register_inputs() -> void:
 		"toggle_panel": [KEY_G],
 		"toggle_squad": [KEY_F],
 		"cycle_formation": [KEY_V],
+		"debug_needs": [KEY_F10],
 	}
 	for action in map:
 		if InputMap.has_action(action):
@@ -128,6 +129,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		panel.toggle()
 	elif event.is_action_pressed("toggle_squad"):
 		set_squad_mode(not squad_mode)
+	elif event.is_action_pressed("debug_needs"):
+		# Debug : met tout le monde en manque, pour tester faim, soif et bulles.
+		for s in survivors:
+			s.thirst = 20.0
+			s.hunger = 25.0
+		_notify("Debug (F10) : tous les survivants ont faim et soif")
 	elif event.is_action_pressed("cycle_formation"):
 		formation = ((formation + 1) % Formation.size()) as Formation
 		_notify("Formation : %s" % FORMATION_NAMES[formation])
@@ -444,6 +451,8 @@ func _update_hud() -> void:
 		lines.append("%s : %.0f × %d dégâts, %.1f tirs/s%s" % [
 			w.weapon_name, w.damage, w.bullets_per_shot, w.fire_rate,
 			"" if w.element == WeaponData.Element.AUCUN else ", " + WeaponData.element_name(w.element)])
+		lines.append("Eau %d %%   Nourriture %d %%%s" % [selected.thirst, selected.hunger,
+			"   (ralenti !)" if selected.thirst <= 0.0 or selected.hunger <= 0.0 else ""])
 		if selected.carrying > 0:
 			lines.append("Porte %d %s : à déposer au feu de camp" % [selected.carrying, selected.carrying_type])
 	else:

@@ -64,6 +64,15 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Échap relâche le survivant contrôlé : plus personne n'est sélectionné et la caméra devient libre (ZQSD / WASD / flèches). En mode escouade, Échap quitte d'abord le mode (la composition reste enregistrée).
 - Tab, 1-9, clic droit sur un survivant ou clic sur une tuile / vignette pour reprendre un survivant.
 
+## Ajouts v0.6 : faim, soif et bulles
+
+- Jauges d'eau (vide en 4 min) et de nourriture (vide en 6 min), visibles dans le panneau et le HUD.
+- En passant près du feu de camp, un survivant dépose sa charge puis boit et mange au stock commun.
+- Sous 30 %, un survivant non contrôlé (hors escouade active) va de lui-même au stock, s'il y a de quoi ; stock vide = rien ne se passe.
+- Jauge vide : vitesse × 0,6.
+- Quand ça manque, le survivant le dit dans une bulle (répliques en humour noir), toutes les 7 à 12 s.
+- **F10** (debug) : met tous les survivants en manque pour tester.
+
 ## Structure
 
 ```
@@ -80,6 +89,7 @@ scripts/survivor_appearance.gd  apparence aléatoire et dessin du visage
 scripts/resource_node.gd  point de récolte (la mare)
 scripts/village_stock.gd  stock commun du village
 scripts/ui/squad_bar.gd   barre d'escouade
+scripts/speech_bubble.gd  bulle de dialogue (phylactère)
 scripts/ui/               interface : panneau de gestion, tuiles, vignettes, styles
 data/weapons/*.tres       armes, modifiables dans l'inspecteur de Godot
 tests/run_tests.gd        tests automatisés

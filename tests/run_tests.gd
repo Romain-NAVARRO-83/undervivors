@@ -11,6 +11,7 @@ var _main: Node
 var _worker: Survivor
 var _frames := 0
 var _cam_x := 0.0
+var _water_before := 0
 
 
 func _init() -> void:
@@ -19,6 +20,7 @@ func _init() -> void:
 	test_appearance()
 	test_level_up()
 	test_stock()
+	test_needs()
 	# Test de scène : cycle de récolte complet à la mare (se termine dans _process).
 	_main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(_main)
@@ -32,8 +34,8 @@ func _process(_delta: float) -> bool:
 		_main.assign_survivor(_worker, _main.resource_nodes[0])
 		check(_worker.task_node == _main.resource_nodes[0], "survivant assigné à la mare")
 	if _frames == 1500:
-		var eau: int = _main.stock.get_amount("eau")
-		check(eau >= _worker.carry_capacity(), "eau rapportée au stock (%d)" % eau)
+		var eau: int = _main.stock.total_added.get("eau", 0)
+		check(eau >= 2, "eau rapportée au stock (%d au total)" % eau)
 		check(_worker.task_node != null, "toujours assigné après le dépôt (jusqu'à ordre contraire)")
 		# Escouade : le travailleur reste assigné pour vérifier la reprise de tâche.
 		var m: Array = _main.survivors
@@ -76,6 +78,22 @@ func _process(_delta: float) -> bool:
 		Input.action_release("move_right")
 		check(_main.camera.position.x > _cam_x + 100.0, "caméra libre déplacée au clavier (%.0f px)" % (_main.camera.position.x - _cam_x))
 		check(not _main.survivors[2].selected, "aucun survivant ne bouge sous le clavier")
+		# Soif : un survivant libre, loin du village, assoiffé → bulle, puis va boire.
+		var t: Survivor = _main.survivors[4]
+		t.global_position = Vector2(300, -150)
+		t.thirst = 10.0
+		t.hunger = 90.0
+		t._bubble_cooldown = 0.0
+		_main.stock.add("eau", 10)
+		_water_before = _main.stock.total_taken.get("eau", 0)
+	if _frames == 1765:
+		var t: Survivor = _main.survivors[4]
+		check(t.bubble.is_showing(), "bulle affichée quand il a soif : « %s »" % t.bubble.text())
+		check(t.activity_text() == "Va boire et manger au village", "part boire au village de lui-même")
+	if _frames == 2300:
+		var t: Survivor = _main.survivors[4]
+		check(t.thirst >= Survivor.NEED_REFILLED - 5.0, "a bu au stock (eau %.0f)" % t.thirst)
+		check(_main.stock.total_taken.get("eau", 0) > _water_before, "de l'eau a été prise au stock")
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false
@@ -150,6 +168,28 @@ func test_level_up() -> void:
 	check(is_equal_approx(s.move_speed(), 158.0), "vitesse 6 → 158 px/s")
 	check(s.carry_capacity() == 4, "niveau 3 → porte 4 par trajet")
 	s.free()
+
+
+func test_needs() -> void:
+	var s := Survivor.new()
+	s.speed_stat = 5
+	var normal := s.move_speed()
+	s.thirst = 0.0
+	check(is_equal_approx(s.move_speed(), normal * Survivor.EMPTY_SLOWDOWN), "jauge d'eau vide : ralenti")
+	s.thirst = 50.0
+	s.hunger = 0.0
+	check(s.move_speed() < normal, "jauge de nourriture vide : ralenti")
+	var st := VillageStock.new()
+	s.stock = st
+	s.hunger = 50.0
+	s.thirst = 20.0
+	check(not s.needs_refill(), "stock vide : rien ne se passe (pas de trajet inutile)")
+	st.add("eau", 10)
+	check(s.needs_refill(), "assoiffé et eau en stock : va boire")
+	s._refill("eau")
+	check(s.thirst >= Survivor.NEED_REFILLED and st.get_amount("eau") == 6, "boit au stock : 4 unités → jauge remontée")
+	s.free()
+	st.free()
 
 
 func test_stock() -> void:
