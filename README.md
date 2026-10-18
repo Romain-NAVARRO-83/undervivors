@@ -38,6 +38,14 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Passage de niveau tous les 100 XP : 1 point à attribuer dans la stat de son choix.
 - Panneau de gestion : une tuile par survivant avec vignette, barres de stats, boutons « + » et arme. Clic sur une tuile = prendre le contrôle. Le jeu continue derrière.
 
+## Ajouts v0.3
+
+- Une mare (point de récolte d'eau) au sud-est du village.
+- Stock commun du village, affiché en haut de l'écran.
+- Assignation : **clic droit sur la mare** avec un survivant contrôlé (le contrôle passe au survivant libre suivant), ou menu **Tâche** dans le panneau des survivants.
+- Le survivant assigné fait des allers-retours mare → feu de camp jusqu'à nouvel ordre ; il porte 1 + son niveau par trajet et continue de tirer seul en chemin.
+- Prendre le contrôle d'un survivant assigné met sa tâche en pause ; il la reprend quand on le relâche. Un survivant contrôlé dépose sa charge en passant au feu de camp.
+
 ## Structure
 
 ```
@@ -51,6 +59,8 @@ scripts/target_dummy.gd   cible d'entraînement (placeholder d'ennemi)
 scripts/weapon_pickup.gd  arme au sol
 scripts/iso_ground.gd     sol isométrique placeholder
 scripts/survivor_appearance.gd  apparence aléatoire et dessin du visage
+scripts/resource_node.gd  point de récolte (la mare)
+scripts/village_stock.gd  stock commun du village
 scripts/ui/               interface : panneau de gestion, tuiles, vignettes, styles
 data/weapons/*.tres       armes, modifiables dans l'inspecteur de Godot
 tests/run_tests.gd        tests automatisés

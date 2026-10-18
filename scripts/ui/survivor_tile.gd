@@ -4,6 +4,7 @@ extends PanelContainer
 ## stats en barres de progression, points à attribuer et équipement.
 
 signal select_requested(survivor: Survivor)
+signal assignment_requested(survivor: Survivor, node: ResourceNode)
 
 const ROWS := [
 	# [clé de barre, libellé, stat à augmenter avec « + » (vide = aucun)]
@@ -15,8 +16,11 @@ const ROWS := [
 ]
 
 var survivor: Survivor
+var resource_nodes: Array = []
 
 var _portrait: SurvivorPortrait
+var _activity: Label
+var _task: OptionButton
 var _name: Label
 var _level: Label
 var _weapon: Label
@@ -29,8 +33,9 @@ var _style_hover: StyleBoxFlat
 var _style_selected: StyleBoxFlat
 
 
-func setup(s: Survivor) -> SurvivorTile:
+func setup(s: Survivor, nodes: Array = []) -> SurvivorTile:
 	survivor = s
+	resource_nodes = nodes
 	return self
 
 
@@ -101,7 +106,33 @@ func _ready() -> void:
 
 	_weapon = UIStyle.label("", 12, UIStyle.TEXT_DIM)
 	root.add_child(_weapon)
+
+	# Tâche : errance ou récolte sur un point
+	var task_row := HBoxContainer.new()
+	task_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	task_row.add_theme_constant_override("separation", 8)
+	root.add_child(task_row)
+	task_row.add_child(UIStyle.label("Tâche", 12, UIStyle.TEXT_DIM))
+	_task = OptionButton.new()
+	_task.focus_mode = Control.FOCUS_NONE
+	_task.add_theme_font_size_override("font_size", 12)
+	_task.add_theme_stylebox_override("normal", UIStyle.box(UIStyle.BAR_BG, UIStyle.BORDER, 6, 1, 4))
+	_task.add_theme_stylebox_override("hover", UIStyle.box(UIStyle.BAR_BG, UIStyle.ACCENT, 6, 1, 4))
+	_task.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_task.add_item("Aucune (errance)", 0)
+	for i in resource_nodes.size():
+		var node: ResourceNode = resource_nodes[i]
+		_task.add_item("Récolte : %s (%s)" % [node.display_name, node.resource_type], i + 1)
+	_task.item_selected.connect(_on_task_selected)
+	task_row.add_child(_task)
+	_activity = UIStyle.label("", 12, UIStyle.TEXT_DIM)
+	root.add_child(_activity)
 	refresh()
+
+
+func _on_task_selected(index: int) -> void:
+	var node: ResourceNode = null if index == 0 else resource_nodes[index - 1]
+	assignment_requested.emit(survivor, node)
 
 
 func _make_bar(key: String) -> Control:
@@ -152,6 +183,10 @@ func refresh() -> void:
 		b.disabled = not on
 		b.mouse_filter = Control.MOUSE_FILTER_STOP if on else Control.MOUSE_FILTER_IGNORE
 	_weapon.text = "Arme : %s" % (s.weapon.weapon_name if s.weapon else "—")
+	var wanted := 0 if s.task_node == null else resource_nodes.find(s.task_node) + 1
+	if _task.selected != wanted:
+		_task.select(wanted)
+	_activity.text = "→ " + s.activity_text()
 	var style := _style_selected if s.selected else (_style_hover if _hover else _style_normal)
 	add_theme_stylebox_override("panel", style)
 

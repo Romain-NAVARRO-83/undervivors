@@ -39,6 +39,17 @@ var village_center: Vector2 = Vector2.ZERO
 var wander_radius: float = 140.0
 var aim_dir: Vector2 = Vector2.RIGHT
 
+## Récolte (GDD 9) : point de récolte assigné (null = aucun) et chargement porté.
+enum WorkState { TO_SOURCE, GATHERING, TO_VILLAGE }
+var stock: VillageStock
+var task_node: ResourceNode = null
+var carrying: int = 0
+var carrying_type: String = ""
+var work_state: WorkState = WorkState.TO_SOURCE
+var _gather_timer := 0.0
+var _gather_angle := 0.0
+var _deposit_offset := Vector2.ZERO
+
 var _rng := RandomNumberGenerator.new()
 var _wander_target: Vector2
 var _wander_wait := 0.0
@@ -48,6 +59,7 @@ var _body_color := Color(0.3, 0.6, 0.9)
 
 func _ready() -> void:
 	_rng.randomize()
+	add_to_group("survivors")
 	collision_layer = 1   # survivants
 	collision_mask = 2 | 4  # ennemis + obstacles (les survivants se traversent entre eux)
 	var shape := CollisionShape2D.new()
@@ -82,6 +94,36 @@ func move_speed() -> float:
 ## Multiplicateur de dispersion : 1 pour une précision de 5, plus serré au-delà.
 func spread_factor() -> float:
 	return clampf(1.3 - accuracy * 0.06, 0.2, 1.5)
+
+
+## Quantité rapportée par trajet : liée au niveau (GDD 9).
+func carry_capacity() -> int:
+	return 1 + level
+
+
+## Assigne le survivant à un point de récolte, ou le libère avec null.
+## S'il porte quelque chose, il va d'abord le déposer au village.
+func assign(node: ResourceNode) -> void:
+	task_node = node
+	if node:
+		_gather_angle = _rng.randf() * TAU
+		_deposit_offset = Vector2(cos(_gather_angle), sin(_gather_angle) * 0.5) * 22.0
+	work_state = WorkState.TO_VILLAGE if carrying > 0 else WorkState.TO_SOURCE
+
+
+## Texte court décrivant l'activité, pour l'interface.
+func activity_text() -> String:
+	if selected:
+		return "Contrôlé" + (" · porte %d %s" % [carrying, carrying_type] if carrying > 0 else "")
+	if task_node == null:
+		return "Dépose %d %s" % [carrying, carrying_type] if carrying > 0 else "Erre au village"
+	match work_state:
+		WorkState.TO_SOURCE:
+			return "Va à : %s" % task_node.display_name
+		WorkState.GATHERING:
+			return "Récolte à : %s" % task_node.display_name
+		_:
+			return "Rapporte %d %s" % [carrying, carrying_type]
 
 
 ## XP accumulée depuis le dernier niveau, et XP nécessaire pour le suivant.
@@ -135,9 +177,62 @@ func _process_controlled() -> void:
 	# Pas de tir quand la souris survole l'interface (panneau, boutons).
 	if Input.is_action_pressed("shoot") and get_viewport().gui_get_hovered_control() == null:
 		try_shoot(aim_dir)
+	# Le survivant contrôlé dépose aussi sa charge en passant au centre du village.
+	if carrying > 0 and global_position.distance_to(village_center) < 36.0:
+		_deposit()
 
 
 func _process_autonomous(delta: float) -> void:
+	if task_node != null or carrying > 0:
+		_process_work(delta)
+	else:
+		_process_wander(delta)
+	_autonomous_shooting()
+
+
+## Cycle de récolte : aller au point, récolter, rapporter au centre, déposer.
+func _process_work(delta: float) -> void:
+	var speed := move_speed() * 0.75
+	match work_state:
+		WorkState.TO_SOURCE:
+			if task_node == null:
+				work_state = WorkState.TO_VILLAGE
+			elif _move_towards(task_node.gather_point(_gather_angle), speed):
+				work_state = WorkState.GATHERING
+				_gather_timer = task_node.gather_time
+		WorkState.GATHERING:
+			velocity = Vector2.ZERO
+			_gather_timer -= delta
+			if task_node == null:
+				work_state = WorkState.TO_VILLAGE
+			elif _gather_timer <= 0.0:
+				carrying = carry_capacity()
+				carrying_type = task_node.resource_type
+				work_state = WorkState.TO_VILLAGE
+		WorkState.TO_VILLAGE:
+			if _move_towards(village_center + _deposit_offset, speed):
+				_deposit()
+				work_state = WorkState.TO_SOURCE
+
+
+func _deposit() -> void:
+	if carrying > 0 and stock:
+		stock.add(carrying_type, carrying)
+	carrying = 0
+	carrying_type = ""
+
+
+## Fixe la vitesse vers `target` ; retourne true une fois arrivé.
+func _move_towards(target: Vector2, speed: float) -> bool:
+	var to_target := target - global_position
+	if to_target.length() < 6.0:
+		velocity = Vector2.ZERO
+		return true
+	velocity = to_target.normalized() * speed
+	return false
+
+
+func _process_wander(delta: float) -> void:
 	# Errance autour du centre du village.
 	if _wander_wait > 0.0:
 		_wander_wait -= delta
@@ -150,7 +245,10 @@ func _process_autonomous(delta: float) -> void:
 			_pick_wander_target()
 		else:
 			velocity = to_target.normalized() * WANDER_SPEED
-	# Tir autonome sur l'ennemi le plus proche à portée.
+
+
+## Tir autonome sur l'ennemi le plus proche à portée (GDD 5.4).
+func _autonomous_shooting() -> void:
 	var target := _nearest_enemy()
 	if target:
 		var dir: Vector2 = (target.global_position - global_position).normalized()
@@ -228,6 +326,12 @@ func _draw() -> void:
 	if is_hero:
 		draw_arc(Vector2(0, -12), 9.0, 0.0, TAU, 20, Color(0.95, 0.75, 0.2), 2.0)
 	SurvivorAppearance.draw_face(self, Vector2(0, -26), 7.0, appearance, false)
+	# Chargement porté : seau (eau) ou panier (autre)
+	if carrying > 0:
+		var col := Color(0.35, 0.65, 0.9) if carrying_type == "eau" else Color(0.75, 0.55, 0.3)
+		draw_rect(Rect2(7, -18, 9, 9), Color(0.45, 0.32, 0.2))
+		draw_rect(Rect2(8, -17, 7, 3), col)
+		draw_arc(Vector2(11.5, -18), 4.5, PI, TAU, 8, Color(0.3, 0.25, 0.2), 1.2)
 	# Visée
 	draw_line(Vector2(0, -12), Vector2(0, -12) + aim_dir * 18.0, Color(0.2, 0.15, 0.1), 3.0)
 	# Barre de PV

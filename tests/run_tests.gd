@@ -6,13 +6,38 @@ var _failures := 0
 var _checks := 0
 
 
+var _main: Node
+var _worker: Survivor
+var _frames := 0
+
+
 func _init() -> void:
 	test_name_generator()
 	test_weapons()
 	test_appearance()
 	test_level_up()
-	print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
-	quit(1 if _failures > 0 else 0)
+	test_stock()
+	# Test de scène : cycle de récolte complet à la mare (se termine dans _process).
+	_main = load("res://scenes/main.tscn").instantiate()
+	root.add_child(_main)
+
+
+func _process(_delta: float) -> bool:
+	_frames += 1
+	if _frames == 2:
+		_main._select(null)  # personne n'est contrôlé
+		_worker = _main.survivors[1]
+		_main.assign_survivor(_worker, _main.resource_nodes[0])
+		check(_worker.task_node == _main.resource_nodes[0], "survivant assigné à la mare")
+	if _frames == 1500:
+		var eau: int = _main.stock.get_amount("eau")
+		check(eau >= _worker.carry_capacity(), "eau rapportée au stock (%d)" % eau)
+		check(_worker.task_node != null, "toujours assigné après le dépôt (jusqu'à ordre contraire)")
+		_main.assign_survivor(_worker, null)
+		check(_worker.task_node == null, "survivant libéré")
+		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
+		quit(1 if _failures > 0 else 0)
+	return false
 
 
 func check(cond: bool, msg: String) -> void:
@@ -82,4 +107,13 @@ func test_level_up() -> void:
 	check(s.spend_point("pv_max") and s.max_hp == 110 and s.hp == 110, "point en PV max (+10)")
 	check(s.stat_points == 0, "points épuisés")
 	check(is_equal_approx(s.move_speed(), 158.0), "vitesse 6 → 158 px/s")
+	check(s.carry_capacity() == 4, "niveau 3 → porte 4 par trajet")
 	s.free()
+
+
+func test_stock() -> void:
+	var st := VillageStock.new()
+	st.add("eau", 5)
+	check(st.get_amount("eau") == 5, "stock : ajout")
+	check(st.take("eau", 8) == 5 and st.get_amount("eau") == 0, "stock : on ne prend pas plus que disponible")
+	st.free()
