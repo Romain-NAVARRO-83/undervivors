@@ -91,7 +91,8 @@ func _physics_process(delta: float) -> void:
 	var goal: Vector2 = target.global_position if target else village_center
 	var to_goal := goal - global_position
 	var dist := to_goal.length()
-	var dir := to_goal / maxf(dist, 0.001)
+	var to_way := Terrain.route(global_position, goal) - global_position
+	var dir := to_way / maxf(to_way.length(), 0.001)
 	if target and dist < 20.0:
 		# Au contact : bond d'attaque, sans dégâts pour l'instant.
 		velocity = Vector2.ZERO
@@ -122,10 +123,10 @@ func _process_posted(delta: float) -> void:
 				_lunge = 0.25
 				_lunge_cooldown = 1.2
 		else:
-			velocity = to_t.normalized() * speed + _separation() * 40.0
+			velocity = (Terrain.route(global_position, target.global_position) - global_position).normalized() * speed + _separation() * 40.0
 	elif global_position.distance_to(home) > wander_radius + 12.0:
 		# Retour au point d'attache
-		velocity = (home - global_position).normalized() * speed * 0.9
+		velocity = (Terrain.route(global_position, home) - global_position).normalized() * speed * 0.9
 		_wander_wait = 0.0
 	else:
 		# Errance sur une petite distance

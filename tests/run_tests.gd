@@ -20,6 +20,7 @@ var _cleared := false
 var _spawner: MobSpawner
 var _bait: Survivor
 var _bot: Mob
+var _wall: Survivor
 
 
 func _init() -> void:
@@ -30,6 +31,7 @@ func _init() -> void:
 	test_stock()
 	test_needs()
 	test_inventory()
+	test_terrain()
 	# Test de scène : cycle de récolte complet à la mare (se termine dans _process).
 	_main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(_main)
@@ -99,6 +101,8 @@ func _process(_delta: float) -> bool:
 		t._bubble_cooldown = 0.0
 		_main.stock.add("eau", 10)
 		_water_before = _main.stock.total_taken.get("eau", 0)
+	if _frames == 1883:
+		check(not _main.squad_bar.visible, "mode gestion : la barre d'escouade est masquée")
 	if _frames == 1885:
 		var t: Survivor = _main.survivors[4]
 		check(t.bubble.is_showing(), "bulle affichée quand il a soif : « %s »" % t.bubble.text())
@@ -190,7 +194,21 @@ func _process(_delta: float) -> bool:
 			if is_instance_valid(m) and m.is_alive():
 				m.take_damage(9999.0)
 		check(_spawner.is_secured, "ses bots éliminés : zone sécurisée")
-	if _frames == 3201:
+		# Crête : un survivant contrôlé qui fonce vers l'est est arrêté par les rochers.
+		_wall = _main.survivors[0]
+		_main._select(_wall)
+		_wall.global_position = Vector2(Terrain.RIDGE_X - 80, -250)
+		Input.action_press("move_right")
+	if _frames == 3290:
+		Input.action_release("move_right")
+		check(_wall.global_position.x < Terrain.RIDGE_X, "la crête bloque le passage hors du col (x = %.0f)" % _wall.global_position.x)
+		check(_main.get_tree().get_nodes_in_group("spawners").size() == 2, "deux générateurs")
+		var near_gap := true
+		for sp in _main.get_tree().get_nodes_in_group("spawners"):
+			if sp.global_position.distance_to(Vector2(Terrain.RIDGE_X, Terrain.GAP_Y)) > 150.0:
+				near_gap = false
+		check(near_gap, "les deux générateurs gardent le passage")
+	if _frames == 3291:
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false
@@ -327,6 +345,16 @@ func test_inventory() -> void:
 	check(harpoon.dps() > load("res://data/weapons/slingshot.tres").dps(), "le harpon fait plus de dégâts/s que le lance-pierre")
 	s.free()
 	st.free()
+
+
+func test_terrain() -> void:
+	var a := Vector2(200, -200)
+	var b := Vector2(700, -200)
+	var wp := Terrain.route(a, b)
+	check(wp.x < Terrain.RIDGE_X and absf(wp.y - Terrain.GAP_Y) < 1.0, "pour traverser la crête, on passe par l'entrée du passage")
+	check(Terrain.route(a, Vector2(100, 300)) == Vector2(100, 300), "même côté : trajet direct")
+	var inside := Terrain.route(Vector2(Terrain.RIDGE_X - 20, 5), b)
+	check(inside.x > Terrain.RIDGE_X, "dans le passage : on file vers l'autre côté")
 
 
 func test_stock() -> void:

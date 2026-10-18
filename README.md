@@ -114,6 +114,15 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Détruire un générateur arrête définitivement la production (zone orange) ; quand ses derniers bots sont morts, la zone est **sécurisée** (pointillés verts).
 - Debug (F1) : replacer les ennemis, détruire les générateurs, compteurs de monstres et de générateurs.
 
+## Ajouts v0.12 : crête rocheuse et passage gardé
+
+- Une **crête rocheuse** coupe la carte en deux, du nord au sud, à l'est du village. Un **seul passage** la traverse, gardé par les **deux générateurs de bots**.
+- La carte a maintenant une bordure : on ne peut plus sortir du sol.
+- Les rochers arrêtent les tirs.
+- Contournement simple : survivants (récolte, retour au stock, suiveurs d'escouade) et monstres passent automatiquement par le col quand leur destination est de l'autre côté.
+- Côté est : un camp d'ennemis, le coffre gardé, et les générateurs. Côté village : la mare, les cocotiers, un camp à l'ouest.
+- En mode gestion (aucun survivant sélectionné), la barre d'escouade est masquée.
+
 ## Structure
 
 ```
@@ -126,6 +135,8 @@ scripts/projectile.gd     projectile
 scripts/mob.gd            monstre de base (sans dégâts pour l'instant)
 scripts/wave_manager.gd   vagues de monstres
 scripts/mob_spawner.gd    générateur de bots
+scripts/ridge.gd          crête rocheuse et bordure de carte
+scripts/terrain.gd        relief et contournement par le passage
 scripts/iso_ground.gd     sol isométrique placeholder
 scripts/survivor_appearance.gd  apparence aléatoire et dessin du visage
 scripts/resource_node.gd  points de récolte (mare, cocotiers)

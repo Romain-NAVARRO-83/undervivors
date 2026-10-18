@@ -33,11 +33,12 @@ var wave_manager: WaveManager
 ## Coffres de loot (GDD 8 bis) : on tire dessus pour les casser.
 ## Ennemis postés sur la carte (camps) et générateurs de bots.
 const ENEMY_CAMPS := [
-	[Vector2(340, -270), 3],
+	[Vector2(600, -330), 3],
 	[Vector2(-460, -200), 3],
 	[Vector2(480, 130), 2],    # gardent le coffre de l'est
 ]
-const SPAWNER_POSITIONS := [Vector2(580, -190), Vector2(-660, -40)]
+## Les deux générateurs gardent le seul passage de la crête (côté est).
+const SPAWNER_POSITIONS := [Vector2(475, -80), Vector2(475, 80)]
 const CHEST_POSITIONS := [Vector2(-430, -80), Vector2(170, -300), Vector2(440, 170), Vector2(-60, 290)]
 var loot_panel: LootPanel
 var survivors: Array[Survivor] = []
@@ -62,6 +63,13 @@ func _ready() -> void:
 	world.name = "World"
 	world.y_sort_enabled = true
 	add_child(world)
+
+	# Crête rocheuse qui coupe la carte en deux, un seul passage (+ bordure de carte)
+	var ridge := Ridge.new()
+	ridge.name = "Crete"
+	ridge.world = world
+	add_child(ridge)
+	ridge.build()
 
 	# Point de récolte d'eau
 	var pond := ResourceNode.new()
@@ -384,7 +392,10 @@ func _process(delta: float) -> void:
 		camera.position += input * FREE_CAMERA_SPEED / camera.zoom.x * delta
 		camera.position = camera.position.clamp(-CAMERA_LIMIT, CAMERA_LIMIT)
 	panel.sync(survivors)
+	# En mode gestion (personne de sélectionné), la barre d'escouade se masque.
 	squad_bar.refresh(squad, selected, squad_mode, FORMATION_NAMES[formation])
+	if not is_instance_valid(selected):
+		squad_bar.visible = false
 	_update_hud()
 
 
@@ -432,6 +443,7 @@ func setup_map_enemies() -> void:
 		sp.world = world
 		sp.village_center = VILLAGE_CENTER
 		sp.position = pos
+		sp.zone_radius = 120.0
 		sp.destroyed.connect(func(_s): _notify("Générateur détruit ! Éliminez ses derniers bots."))
 		sp.zone_secured.connect(func(_s): _notify("Zone sécurisée"))
 		world.add_child(sp)

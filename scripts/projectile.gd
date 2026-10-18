@@ -15,7 +15,7 @@ var _travelled := 0.0
 
 func _ready() -> void:
 	collision_layer = 0
-	collision_mask = 2  # ennemis
+	collision_mask = 2 | 4  # ennemis + obstacles (les rochers arrêtent les tirs)
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = 3.0

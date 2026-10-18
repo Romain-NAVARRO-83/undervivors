@@ -392,7 +392,8 @@ func _process_follow() -> void:
 	else:
 		# Rattrape plus vite quand il est loin, ralentit en approchant.
 		var speed := maxf(move_speed(), follow_speed * 1.15)
-		velocity = to_slot.normalized() * minf(speed, dist * 6.0)
+		var waypoint := Terrain.route(global_position, follow_point)
+		velocity = (waypoint - global_position).normalized() * minf(speed, maxf(dist, 30.0) * 6.0)
 	_autonomous_shooting()
 
 
@@ -450,7 +451,9 @@ func _move_towards(target: Vector2, speed: float) -> bool:
 	if to_target.length() < 6.0:
 		velocity = Vector2.ZERO
 		return true
-	velocity = to_target.normalized() * speed
+	# Contourne la crête par le passage si besoin.
+	var waypoint := Terrain.route(global_position, target)
+	velocity = (waypoint - global_position).normalized() * speed
 	return false
 
 
