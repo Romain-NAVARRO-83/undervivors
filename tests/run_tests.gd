@@ -33,9 +33,13 @@ func _process(_delta: float) -> bool:
 		_worker = _main.survivors[1]
 		_main.assign_survivor(_worker, _main.resource_nodes[0])
 		check(_worker.task_node == _main.resource_nodes[0], "survivant assigné à la mare")
+		_main.assign_survivor(_main.survivors[3], _main.resource_nodes[1])
+		check(_main.resource_nodes[1].resource_type == "nourriture", "les cocotiers donnent de la nourriture")
 	if _frames == 1500:
 		var eau: int = _main.stock.total_added.get("eau", 0)
 		check(eau >= 2, "eau rapportée au stock (%d au total)" % eau)
+		var food: int = _main.stock.total_added.get("nourriture", 0)
+		check(food >= 2, "nourriture rapportée des cocotiers (%d au total)" % food)
 		check(_worker.task_node != null, "toujours assigné après le dépôt (jusqu'à ordre contraire)")
 		# Escouade : le travailleur reste assigné pour vérifier la reprise de tâche.
 		var m: Array = _main.survivors

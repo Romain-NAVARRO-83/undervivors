@@ -73,6 +73,12 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Quand ça manque, le survivant le dit dans une bulle (répliques en humour noir), toutes les 7 à 12 s.
 - **F10** (debug) : met tous les survivants en manque pour tester.
 
+## Ajouts v0.7 : nourriture
+
+- Bosquet de cocotiers au sud-ouest du village, en bord de plage : point de récolte de nourriture (3 s de cueillette).
+- Même fonctionnement que la mare : clic droit dessus avec un survivant contrôlé, ou menu Tâche du panneau.
+- Les survivants mangent ce qui arrive au stock quand leur jauge est sous 80 % : au début, le stock peut donc rester bas le temps que tout le monde soit rassasié.
+
 ## Structure
 
 ```
@@ -86,7 +92,7 @@ scripts/target_dummy.gd   cible d'entraînement (placeholder d'ennemi)
 scripts/weapon_pickup.gd  arme au sol
 scripts/iso_ground.gd     sol isométrique placeholder
 scripts/survivor_appearance.gd  apparence aléatoire et dessin du visage
-scripts/resource_node.gd  point de récolte (la mare)
+scripts/resource_node.gd  points de récolte (mare, cocotiers)
 scripts/village_stock.gd  stock commun du village
 scripts/ui/squad_bar.gd   barre d'escouade
 scripts/speech_bubble.gd  bulle de dialogue (phylactère)

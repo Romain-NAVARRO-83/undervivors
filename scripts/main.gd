@@ -58,6 +58,18 @@ func _ready() -> void:
 	world.add_child(pond)
 	resource_nodes.append(pond)
 
+	# Point de récolte de nourriture
+	var grove := ResourceNode.new()
+	grove.name = "Cocotiers"
+	grove.display_name = "Cocotiers"
+	grove.resource_type = "nourriture"
+	grove.visual = ResourceNode.Visual.COCOTIERS
+	grove.gather_time = 3.0
+	grove.radius = 44.0
+	grove.position = Vector2(-270, 200)
+	world.add_child(grove)
+	resource_nodes.append(grove)
+
 	for i in START_SURVIVORS:
 		_spawn_survivor(VILLAGE_CENTER + Vector2(randf_range(-60, 60), randf_range(-30, 30)), i == 0)
 
@@ -425,7 +437,7 @@ func _build_hud() -> void:
 	layer.add_child(panel)  # au-dessus de la barre d'escouade
 
 	var help := Label.new()
-	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : panneau des survivants   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare   Échap : relâcher (caméra libre)"
+	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : panneau des survivants   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare / aux cocotiers   Échap : relâcher (caméra libre)"
 	help.add_theme_font_size_override("font_size", 13)
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.anchor_top = 1.0

@@ -1,7 +1,10 @@
 class_name ResourceNode
 extends Node2D
 ## Point de récolte (GDD 9). Les survivants assignés font des allers-retours
-## entre ce point et le centre du village. Première instance : la mare (eau).
+## entre ce point et le centre du village. Instances : la mare (eau) et le
+## bosquet de cocotiers (nourriture). Le visuel est un placeholder dessiné en code.
+
+enum Visual { MARE, COCOTIERS }
 
 @export var display_name: String = "Mare"
 @export var resource_type: String = "eau"
@@ -9,6 +12,7 @@ extends Node2D
 @export var gather_time: float = 2.0
 ## Demi-largeur de la mare (l'ellipse fait 2 × radius sur 1 × radius).
 @export var radius: float = 46.0
+@export var visual: Visual = Visual.MARE
 
 var hovered := false
 var _t := 0.0
@@ -22,7 +26,8 @@ func _ready() -> void:
 	_label.add_theme_font_size_override("font_size", 11)
 	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	_label.add_theme_constant_override("outline_size", 3)
-	_label.position = Vector2(-90, -radius * 0.5 - 30)
+	var label_y := -radius * 0.5 - (95.0 if visual == Visual.COCOTIERS else 30.0)
+	_label.position = Vector2(-90, label_y)
 	_label.size = Vector2(180, 16)
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_label)
@@ -58,6 +63,55 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	match visual:
+		Visual.COCOTIERS:
+			_draw_coconut_grove()
+		_:
+			_draw_pond()
+	if hovered:
+		_ellipse_outline(Vector2.ZERO, radius + 10, radius * 0.5 + 7, Color(1, 1, 1, 0.8), 2.0)
+
+
+## Bosquet de cocotiers (nourriture) : trois palmiers sur un îlot de sable.
+func _draw_coconut_grove() -> void:
+	var rx := radius
+	var ry := radius * 0.5
+	_ellipse(Vector2(0, 2), rx + 6, ry + 4, Color(0.80, 0.70, 0.46))
+	_ellipse(Vector2.ZERO, rx, ry, Color(0.88, 0.79, 0.55))
+	var palms := [Vector2(-rx * 0.45, ry * 0.15), Vector2(rx * 0.35, -ry * 0.35), Vector2(rx * 0.5, ry * 0.45)]
+	var heights := [62.0, 72.0, 54.0]
+	var bends := [-14.0, 10.0, 18.0]
+	for i in palms.size():
+		var base: Vector2 = palms[i]
+		var h: float = heights[i]
+		var sway := sin(_t * 0.8 + i * 1.7) * 2.5
+		var top := base + Vector2(bends[i] + sway, -h)
+		# Ombre et tronc courbe en segments
+		_ellipse(base + Vector2(6, 2), 12, 5, Color(0, 0, 0, 0.18))
+		var prev := base
+		for k in range(1, 7):
+			var f := k / 6.0
+			var p := base.lerp(top, f) + Vector2(sin(f * PI) * bends[i] * 0.35, 0)
+			draw_line(prev, p, Color(0.45, 0.32, 0.2), 5.0 - f * 2.0)
+			draw_line(prev + Vector2(-2, 0), prev + Vector2(2, 0), Color(0.35, 0.24, 0.15), 1.0)
+			prev = p
+		# Palmes
+		for j in 6:
+			var a := -PI / 2.0 + (j - 2.5) * 0.55 + sway * 0.02
+			var tip := top + Vector2(cos(a) * 26.0, sin(a) * 14.0 + 10.0)
+			var mid := top + Vector2(cos(a) * 14.0, sin(a) * 9.0 - 3.0)
+			draw_polyline(PackedVector2Array([top, mid, tip]), Color(0.22, 0.5, 0.22), 4.0, true)
+			draw_polyline(PackedVector2Array([top, mid, tip]), Color(0.32, 0.62, 0.28), 1.5, true)
+		# Noix de coco
+		for c in [Vector2(-3, 3), Vector2(3, 4), Vector2(0, 7)]:
+			draw_circle(top + c, 3.2, Color(0.4, 0.27, 0.14))
+	# Quelques noix tombées au sol
+	for c in [Vector2(-6, ry * 0.6), Vector2(rx * 0.1, ry * 0.7), Vector2(-rx * 0.7, ry * 0.4)]:
+		draw_circle(c, 3.0, Color(0.4, 0.27, 0.14))
+
+
+## Mare (eau) : berge, eau animée, roseaux.
+func _draw_pond() -> void:
 	var rx := radius
 	var ry := radius * 0.5
 	# Berge
@@ -76,8 +130,6 @@ func _draw() -> void:
 			var top: Vector2 = p + Vector2((j - 1) * 3 + sin(_t * 1.5 + j) * 1.5, -16 - j * 3)
 			draw_line(p + Vector2((j - 1) * 2, 0), top, Color(0.3, 0.45, 0.2), 2.0)
 		draw_rect(Rect2(p + Vector2(-1.5, -24), Vector2(3, 7)), Color(0.45, 0.3, 0.18))
-	if hovered:
-		_ellipse_outline(Vector2.ZERO, rx + 10, ry + 7, Color(1, 1, 1, 0.8), 2.0)
 
 
 func _ellipse(c: Vector2, rx: float, ry: float, col: Color) -> void:
