@@ -6,6 +6,9 @@ const VILLAGE_CENTER := Vector2.ZERO
 const START_SURVIVORS := 5
 const SQUAD_MAX := 4
 const FORMATION_SPACING := 30.0
+## Caméra libre (mode gestion) : vitesse en pixels écran par seconde, limites du monde.
+const FREE_CAMERA_SPEED := 700.0
+const CAMERA_LIMIT := Vector2(1500, 800)
 
 enum Formation { COLONNE, LIGNE, CERCLE }
 const FORMATION_NAMES := ["Colonne", "Ligne", "Cercle"]
@@ -134,7 +137,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if panel.visible:
 			panel.visible = false
 		else:
-			_select(null)
+			release_control()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		_on_right_click()
 	elif event is InputEventKey and event.pressed and not event.echo:
@@ -319,9 +322,26 @@ func _on_survivor_died(s: Survivor) -> void:
 		survivors.append(fresh)
 
 
-func _process(_delta: float) -> void:
+## Relâche le survivant contrôlé : plus personne n'est sélectionné, on passe
+## en mode gestion avec caméra libre (GDD 4.2). En mode escouade, on quitte
+## d'abord le mode (la composition reste enregistrée).
+func release_control() -> void:
+	if not is_instance_valid(selected):
+		return
+	if squad_mode:
+		set_squad_mode(false)
+	_select(null)
+	_notify("Mode gestion : caméra libre")
+
+
+func _process(delta: float) -> void:
 	if is_instance_valid(selected):
 		camera.position = selected.global_position
+	else:
+		# Caméra libre : mêmes touches que le déplacement, vitesse constante à l'écran.
+		var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		camera.position += input * FREE_CAMERA_SPEED / camera.zoom.x * delta
+		camera.position = camera.position.clamp(-CAMERA_LIMIT, CAMERA_LIMIT)
 	panel.sync(survivors)
 	squad_bar.refresh(squad, selected, squad_mode, FORMATION_NAMES[formation])
 	_update_hud()
@@ -398,7 +418,7 @@ func _build_hud() -> void:
 	layer.add_child(panel)  # au-dessus de la barre d'escouade
 
 	var help := Label.new()
-	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : panneau des survivants   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare   Échap : relâcher"
+	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : panneau des survivants   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare   Échap : relâcher (caméra libre)"
 	help.add_theme_font_size_override("font_size", 13)
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.anchor_top = 1.0
@@ -428,5 +448,7 @@ func _update_hud() -> void:
 			lines.append("Porte %d %s : à déposer au feu de camp" % [selected.carrying, selected.carrying_type])
 	else:
 		hud_portrait.visible = false
-		lines.append("Aucun survivant contrôlé")
+		lines.append("Mode gestion  ·  caméra libre")
+		lines.append("ZQSD / WASD / flèches : déplacer la caméra")
+		lines.append("Tab, 1-9 ou clic droit : reprendre un survivant")
 	hud_label.text = "\n".join(lines)

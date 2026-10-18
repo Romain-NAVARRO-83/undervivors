@@ -1,6 +1,7 @@
 extends SceneTree
 ## Tests automatisés, sans fenêtre :
-##   godot --headless --path . -s tests/run_tests.gd
+##   godot --headless --fixed-fps 60 --path . -s tests/run_tests.gd
+## (--fixed-fps 60 : une étape de physique par image, pour des tests reproductibles)
 
 var _failures := 0
 var _checks := 0
@@ -9,6 +10,7 @@ var _checks := 0
 var _main: Node
 var _worker: Survivor
 var _frames := 0
+var _cam_x := 0.0
 
 
 func _init() -> void:
@@ -55,6 +57,7 @@ func _process(_delta: float) -> bool:
 		for i in [0, 1, 3]:
 			if m[i].global_position.distance_to(m[i].follow_point) > 12.0:
 				ok = false
+				print("écart suiveur %d : %.1f px, vitesse %.1f" % [i, m[i].global_position.distance_to(m[i].follow_point), m[i].velocity.length()])
 		check(ok, "les suiveurs ont rejoint leur place en formation")
 		_main.formation = _main.Formation.LIGNE
 		var offs: Array = _main.formation_offsets(3, Vector2.RIGHT)
@@ -62,6 +65,17 @@ func _process(_delta: float) -> bool:
 		_main.set_squad_mode(false)
 		check(not m[1].following and _main.squad.size() == 4, "fin du mode : composition conservée")
 		check(m[1].task_node == _main.resource_nodes[0] and m[1].activity_text() != "Suit le leader en formation", "le travailleur reprend sa tâche")
+		# Relâcher le contrôle en plein mode escouade → mode gestion, caméra libre.
+		_main.set_squad_mode(true)
+		_main.release_control()
+		check(_main.selected == null and not _main.squad_mode, "Échap : plus aucun survivant sélectionné, mode escouade quitté")
+		check(_main.squad.size() == 4, "composition conservée après relâchement")
+		_cam_x = _main.camera.position.x
+		Input.action_press("move_right")
+	if _frames == 1760:
+		Input.action_release("move_right")
+		check(_main.camera.position.x > _cam_x + 100.0, "caméra libre déplacée au clavier (%.0f px)" % (_main.camera.position.x - _cam_x))
+		check(not _main.survivors[2].selected, "aucun survivant ne bouge sous le clavier")
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false

@@ -19,7 +19,8 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 | Tirer | Clic gauche (maintenu) |
 | Survivant suivant | Tab |
 | Choisir un survivant | 1 à 9, ou clic droit dessus |
-| Relâcher le contrôle | Échap |
+| Relâcher le contrôle (mode gestion, caméra libre) | Échap |
+| Déplacer la caméra libre | ZQSD / WASD / flèches, quand aucun survivant n'est sélectionné |
 | Panneau des survivants | G, ou bouton en haut à droite |
 | Mode escouade on/off | F |
 | Changer de formation | V |
@@ -58,6 +59,11 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - La composition reste enregistrée en sortant du mode ; chacun reprend alors sa tâche (récolte) ou son errance.
 - Si le leader meurt, le membre suivant prend la tête.
 
+## Ajouts v0.5 : mode gestion
+
+- Échap relâche le survivant contrôlé : plus personne n'est sélectionné et la caméra devient libre (ZQSD / WASD / flèches). En mode escouade, Échap quitte d'abord le mode (la composition reste enregistrée).
+- Tab, 1-9, clic droit sur un survivant ou clic sur une tuile / vignette pour reprendre un survivant.
+
 ## Structure
 
 ```
@@ -87,5 +93,5 @@ Tout est dessiné en code avec des formes simples. Format prévu pour les tuiles
 
 ```
 godot --headless --path . --import
-godot --headless --path . -s tests/run_tests.gd
+godot --headless --fixed-fps 60 --path . -s tests/run_tests.gd
 ```
