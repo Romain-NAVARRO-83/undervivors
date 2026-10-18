@@ -2,9 +2,10 @@ class_name ResourceNode
 extends Node2D
 ## Point de récolte (GDD 9). Les survivants assignés font des allers-retours
 ## entre ce point et le centre du village. Instances : la mare (eau) et le
-## bosquet de cocotiers (nourriture). Le visuel est un placeholder dessiné en code.
+## bosquet de cocotiers (nourriture), la forêt (bois). Le visuel est un
+## placeholder dessiné en code.
 
-enum Visual { MARE, COCOTIERS }
+enum Visual { MARE, COCOTIERS, FORET }
 
 @export var display_name: String = "Mare"
 @export var resource_type: String = "eau"
@@ -26,7 +27,7 @@ func _ready() -> void:
 	_label.add_theme_font_size_override("font_size", 11)
 	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	_label.add_theme_constant_override("outline_size", 3)
-	var label_y := -radius * 0.5 - (95.0 if visual == Visual.COCOTIERS else 30.0)
+	var label_y := -radius * 0.5 - (95.0 if visual != Visual.MARE else 30.0)
 	_label.position = Vector2(-90, label_y)
 	_label.size = Vector2(180, 16)
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -66,6 +67,8 @@ func _draw() -> void:
 	match visual:
 		Visual.COCOTIERS:
 			_draw_coconut_grove()
+		Visual.FORET:
+			_draw_forest()
 		_:
 			_draw_pond()
 	if hovered:
@@ -108,6 +111,40 @@ func _draw_coconut_grove() -> void:
 	# Quelques noix tombées au sol
 	for c in [Vector2(-6, ry * 0.6), Vector2(rx * 0.1, ry * 0.7), Vector2(-rx * 0.7, ry * 0.4)]:
 		draw_circle(c, 3.0, Color(0.4, 0.27, 0.14))
+
+
+## Forêt (bois) : sapins sombres sur un sol de mousse, souches et bûches coupées.
+func _draw_forest() -> void:
+	var rx := radius
+	var ry := radius * 0.5
+	_ellipse(Vector2(0, 2), rx + 8, ry + 5, Color(0.22, 0.34, 0.2))
+	_ellipse(Vector2.ZERO, rx, ry, Color(0.27, 0.4, 0.23))
+	# Souches et bûches au premier plan
+	for st in [Vector2(-rx * 0.15, ry * 0.55), Vector2(rx * 0.55, ry * 0.35)]:
+		_ellipse(st + Vector2(0, 1), 6, 3, Color(0.3, 0.2, 0.12))
+		draw_rect(Rect2(st + Vector2(-6, -5), Vector2(12, 6)), Color(0.45, 0.3, 0.17))
+		_ellipse(st + Vector2(0, -5), 6, 3, Color(0.75, 0.6, 0.4))
+	draw_rect(Rect2(Vector2(-rx * 0.75, ry * 0.45), Vector2(18, 5)), Color(0.5, 0.33, 0.18))
+	draw_rect(Rect2(Vector2(-rx * 0.7, ry * 0.25), Vector2(16, 5)), Color(0.45, 0.3, 0.16))
+	# Sapins, du fond vers l'avant (tri en profondeur manuel)
+	var trees := [
+		[Vector2(-rx * 0.35, -ry * 0.5), 1.0], [Vector2(rx * 0.3, -ry * 0.6), 1.15],
+		[Vector2(rx * 0.75, -ry * 0.05), 0.9], [Vector2(-rx * 0.8, -ry * 0.05), 0.95],
+		[Vector2(rx * 0.05, ry * 0.05), 1.1],
+	]
+	trees.sort_custom(func(a, b): return a[0].y < b[0].y)
+	for t in trees:
+		var base: Vector2 = t[0]
+		var k: float = t[1]
+		var sway := sin(_t * 0.7 + base.x * 0.05) * 1.5
+		_ellipse(base + Vector2(5, 1), 12 * k, 4 * k, Color(0, 0, 0, 0.2))
+		draw_rect(Rect2(base + Vector2(-2.5 * k, -10 * k), Vector2(5 * k, 10 * k)), Color(0.38, 0.25, 0.14))
+		for layer in 3:
+			var w := (16.0 - layer * 4.0) * k
+			var y0 := base.y - (8.0 + layer * 13.0) * k
+			var top := Vector2(base.x + sway * (layer + 1) * 0.4, y0 - 20.0 * k)
+			var col := Color(0.14 + layer * 0.03, 0.32 + layer * 0.04, 0.18)
+			draw_colored_polygon(PackedVector2Array([Vector2(base.x - w, y0), Vector2(base.x + w, y0), top]), col)
 
 
 ## Mare (eau) : berge, eau animée, roseaux.

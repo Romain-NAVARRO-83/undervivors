@@ -49,11 +49,15 @@ func _process(_delta: float) -> bool:
 		check(_worker.task_node == _main.resource_nodes[0], "survivant assigné à la mare")
 		_main.assign_survivor(_main.survivors[3], _main.resource_nodes[1])
 		check(_main.resource_nodes[1].resource_type == "nourriture", "les cocotiers donnent de la nourriture")
+		_main.assign_survivor(_main.survivors[2], _main.resource_nodes[2])
+		check(_main.resource_nodes[2].resource_type == "bois", "la forêt donne du bois")
 	if _frames == 1500:
 		var eau: int = _main.stock.total_added.get("eau", 0)
 		check(eau >= 2, "eau rapportée au stock (%d au total)" % eau)
 		var food: int = _main.stock.total_added.get("nourriture", 0)
 		check(food >= 2, "nourriture rapportée des cocotiers (%d au total)" % food)
+		var wood: int = _main.stock.total_added.get("bois", 0)
+		check(wood >= 2, "bois rapporté de la forêt (%d au total)" % wood)
 		check(_worker.task_node != null, "toujours assigné après le dépôt (jusqu'à ordre contraire)")
 		# Escouade : le travailleur reste assigné pour vérifier la reprise de tâche.
 		var m: Array = _main.survivors
@@ -214,6 +218,10 @@ func _process(_delta: float) -> bool:
 		# Stock plein : le récolteur de la mare se met en pause, puis reprend sous 50 %.
 		_main._select(null)
 		_picker = _main.survivors[1]
+		_picker.carrying = 0
+		_picker.thirst = 100.0
+		_picker.hunger = 100.0
+		_picker.global_position = Vector2(20, 10)
 		_main.assign_survivor(_picker, _main.resource_nodes[0])
 		_main.stock.add("eau", 99)
 		# Soin des bots dans la zone d'un générateur actif
@@ -232,7 +240,9 @@ func _process(_delta: float) -> bool:
 		check(_picker.activity_text().begins_with("En pause"), "son activité l'indique : « %s »" % _picker.activity_text())
 		var tile_badge: String = _picker.task_node.resource_type
 		check(tile_badge == "eau", "badge d'assignation eau sur sa vignette")
-		_main.stock.take("eau", 6)
+		_picker.thirst = 100.0
+		_picker.hunger = 100.0
+		_main.stock.take("eau", 99)
 	if _frames == 3345:
 		check(not _picker.work_paused, "stock sous 50 % : il reprend la récolte tout seul")
 	if _frames == 3420:
@@ -389,6 +399,7 @@ func test_terrain() -> void:
 func test_stock() -> void:
 	var cap := VillageStock.new()
 	check(cap.add("eau", 14) == 10 and cap.is_full("eau"), "stock plafonné à 10")
+	check(cap.add("bois", 30) == 20, "stock de bois plafonné à 20")
 	check(not cap.needs_restock("eau"), "stock plein : pas besoin de récolter")
 	cap.take("eau", 6)
 	check(cap.needs_restock("eau"), "sous 50 % : la récolte doit reprendre")

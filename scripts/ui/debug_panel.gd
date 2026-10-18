@@ -70,7 +70,8 @@ func _ready() -> void:
 	srow.add_theme_constant_override("separation", 6)
 	root.add_child(srow)
 	_button(srow, "+10 eau", func(): main.stock.add("eau", 10))
-	_button(srow, "+10 nourriture", func(): main.stock.add("nourriture", 10))
+	_button(srow, "+10 nourr.", func(): main.stock.add("nourriture", 10))
+	_button(srow, "+10 bois", func(): main.stock.add("bois", 10))
 	_button(srow, "+1 arme", func(): main.debug_add_random_weapon())
 
 	_section(root, "Monde")

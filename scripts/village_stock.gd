@@ -4,11 +4,12 @@ extends Node
 
 signal changed(resource_type: String, amount: int)
 
-const LABELS := {"eau": "Eau", "nourriture": "Nourriture"}
+const LABELS := {"eau": "Eau", "nourriture": "Nourriture", "bois": "Bois"}
 
-var amounts := {"eau": 0, "nourriture": 0}
-## Capacité maximale par ressource (10 pour l'instant, pourra grandir avec le village).
-var capacity := {"eau": 10, "nourriture": 10}
+var amounts := {"eau": 0, "nourriture": 0, "bois": 0}
+## Capacité maximale par ressource (pourra grandir avec le village).
+## Le bois sert à construire : il ne se consomme pas, d'où un stock plus grand.
+var capacity := {"eau": 10, "nourriture": 10, "bois": 20}
 ## Sous ce taux de remplissage, les récolteurs en pause reprennent le travail.
 const RESUME_RATIO := 0.5
 ## Stock d'objets commun (armes, armures…), alimenté au feu de camp.

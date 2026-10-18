@@ -90,6 +90,18 @@ func _ready() -> void:
 	world.add_child(grove)
 	resource_nodes.append(grove)
 
+	# Point de récolte de bois (construction)
+	var forest := ResourceNode.new()
+	forest.name = "Foret"
+	forest.display_name = "Forêt"
+	forest.resource_type = "bois"
+	forest.visual = ResourceNode.Visual.FORET
+	forest.gather_time = 4.0
+	forest.radius = 48.0
+	forest.position = Vector2(-190, -320)
+	world.add_child(forest)
+	resource_nodes.append(forest)
+
 	for i in START_SURVIVORS:
 		_spawn_survivor(VILLAGE_CENTER + Vector2(randf_range(-60, 60), randf_range(-30, 30)), i == 0)
 
@@ -531,8 +543,8 @@ func _build_hud() -> void:
 	stock_box.add_theme_stylebox_override("panel", UIStyle.box(UIStyle.BG, UIStyle.BORDER, 10, 2, 8))
 	stock_box.anchor_left = 0.5
 	stock_box.anchor_right = 0.5
-	stock_box.offset_left = -185
-	stock_box.offset_right = 185
+	stock_box.offset_left = -290
+	stock_box.offset_right = 200
 	stock_box.offset_top = 12
 	layer.add_child(stock_box)
 	stock_label = UIStyle.label("", 15)
@@ -601,7 +613,7 @@ func _build_hud() -> void:
 	layer.add_child(debug_btn)
 
 	var help := Label.new()
-	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : survivants   I : objets   F1 : debug   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou assigner le survivant contrôlé à la mare / aux cocotiers   Échap : relâcher (caméra libre)"
+	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : survivants   I : objets   F1 : debug   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou l'assigner à un point de récolte (mare, cocotiers, forêt)   Échap : relâcher (caméra libre)"
 	help.add_theme_font_size_override("font_size", 13)
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.anchor_top = 1.0
@@ -612,9 +624,10 @@ func _build_hud() -> void:
 
 
 func _update_hud() -> void:
-	stock_label.text = "Eau  %d/%d     Nourriture  %d/%d     Objets  %d" % [
+	stock_label.text = "Eau  %d/%d     Nourriture  %d/%d     Bois  %d/%d     Objets  %d" % [
 		stock.get_amount("eau"), stock.get_capacity("eau"),
-		stock.get_amount("nourriture"), stock.get_capacity("nourriture"), stock.items.size()]
+		stock.get_amount("nourriture"), stock.get_capacity("nourriture"),
+		stock.get_amount("bois"), stock.get_capacity("bois"), stock.items.size()]
 	var lines: PackedStringArray = []
 	if is_instance_valid(selected):
 		var w := selected.weapon

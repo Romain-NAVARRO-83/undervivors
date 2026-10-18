@@ -583,12 +583,19 @@ func _draw() -> void:
 	if is_hero:
 		draw_arc(Vector2(0, -12), 9.0, 0.0, TAU, 20, Color(0.95, 0.75, 0.2), 2.0)
 	SurvivorAppearance.draw_face(self, Vector2(0, -26), 7.0, appearance, false)
-	# Chargement porté : seau (eau) ou panier (autre)
+	# Chargement porté : seau (eau), panier (nourriture), fagot de bûches (bois)
 	if carrying > 0:
-		var col := Color(0.35, 0.65, 0.9) if carrying_type == "eau" else Color(0.75, 0.55, 0.3)
-		draw_rect(Rect2(7, -18, 9, 9), Color(0.45, 0.32, 0.2))
-		draw_rect(Rect2(8, -17, 7, 3), col)
-		draw_arc(Vector2(11.5, -18), 4.5, PI, TAU, 8, Color(0.3, 0.25, 0.2), 1.2)
+		if carrying_type == "bois":
+			for k in 3:
+				var y := -22.0 + k * 3.5
+				draw_rect(Rect2(-12, y, 16, 3.5), Color(0.5, 0.33, 0.18) if k % 2 == 0 else Color(0.42, 0.27, 0.14))
+				draw_circle(Vector2(-12, y + 1.75), 1.75, Color(0.78, 0.62, 0.4))
+			draw_line(Vector2(-6, -23), Vector2(-6, -11), Color(0.3, 0.22, 0.15), 1.0)
+		else:
+			var col := Color(0.35, 0.65, 0.9) if carrying_type == "eau" else Color(0.75, 0.55, 0.3)
+			draw_rect(Rect2(7, -18, 9, 9), Color(0.45, 0.32, 0.2))
+			draw_rect(Rect2(8, -17, 7, 3), col)
+			draw_arc(Vector2(11.5, -18), 4.5, PI, TAU, 8, Color(0.3, 0.25, 0.2), 1.2)
 	# Visée
 	draw_line(Vector2(0, -12), Vector2(0, -12) + aim_dir * 18.0, Color(0.2, 0.15, 0.1), 3.0)
 	# Barre de PV

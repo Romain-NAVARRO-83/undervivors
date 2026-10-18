@@ -131,6 +131,14 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Les monstres présents dans la zone d'un générateur actif regagnent 4 PV/s (croix verte).
 - Les bulles de dialogue proches s'empilent au lieu de se chevaucher.
 
+## Ajouts v0.14 : bois
+
+- Nouvelle ressource **bois**, destinée à la construction (elle ne se consomme pas).
+- **Forêt** au nord du village : sapins, souches et bûches ; 4 s de coupe par trajet.
+- Stock de bois plafonné à **20** ; même règle de pause et de reprise (sous 50 %) que l'eau et la nourriture.
+- Le bûcheron rapporte un fagot de bûches sur le dos ; badge « bûche » sur sa vignette.
+- Compteur « Bois » en haut de l'écran, « +10 bois » dans le panneau debug.
+
 ## Structure
 
 ```
@@ -147,7 +155,7 @@ scripts/ridge.gd          crête rocheuse et bordure de carte
 scripts/terrain.gd        relief et contournement par le passage
 scripts/iso_ground.gd     sol isométrique placeholder
 scripts/survivor_appearance.gd  apparence aléatoire et dessin du visage
-scripts/resource_node.gd  points de récolte (mare, cocotiers)
+scripts/resource_node.gd  points de récolte (mare, cocotiers, forêt)
 scripts/village_stock.gd  stock commun du village
 scripts/ui/squad_bar.gd   barre d'escouade
 scripts/speech_bubble.gd  bulle de dialogue (phylactère)

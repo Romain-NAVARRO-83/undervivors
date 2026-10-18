@@ -10,7 +10,7 @@ var is_hero := false:
 	set(value):
 		is_hero = value
 		queue_redraw()
-## Badge d'assignation : "eau", "nourriture" ou "" (aucune tâche).
+## Badge d'assignation : "eau", "nourriture", "bois" ou "" (aucune tâche).
 var task_badge := "":
 	set(value):
 		if value != task_badge:
@@ -64,6 +64,11 @@ func _draw_badge(p: Vector2, r: float) -> void:
 		var blue := Color(0.25, 0.55, 0.9, a)
 		draw_circle(p + Vector2(0, r * 0.22), r * 0.45, blue)
 		draw_colored_polygon(PackedVector2Array([p + Vector2(-r * 0.4, r * 0.1), p + Vector2(r * 0.4, r * 0.1), p + Vector2(0, -r * 0.65)]), blue)
+	elif task_badge == "bois":
+		# Bûche vue de biais : corps + cerne
+		draw_rect(Rect2(p + Vector2(-r * 0.55, -r * 0.22), Vector2(r * 1.0, r * 0.44)), Color(0.5, 0.33, 0.18, a))
+		draw_circle(p + Vector2(r * 0.45, 0), r * 0.24, Color(0.82, 0.66, 0.42, a))
+		draw_circle(p + Vector2(r * 0.45, 0), r * 0.1, Color(0.55, 0.38, 0.2, a))
 	else:
 		draw_circle(p + Vector2(0, r * 0.15), r * 0.5, Color(0.45, 0.3, 0.16, a))
 		draw_line(p + Vector2(0, -r * 0.3), p + Vector2(r * 0.45, -r * 0.7), Color(0.3, 0.6, 0.25, a), maxf(1.5, r * 0.22))
