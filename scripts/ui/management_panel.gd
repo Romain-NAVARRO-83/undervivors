@@ -4,11 +4,11 @@ extends PanelContainer
 ## Le jeu continue pendant qu'il est ouvert (pas de pause, GDD 4.2).
 
 signal survivor_selected(survivor: Survivor)
-signal assignment_requested(survivor: Survivor, node: ResourceNode)
+signal assignment_requested(survivor: Survivor, node: Node2D)
 signal squad_toggle_requested(survivor: Survivor)
 
-## Points de récolte proposés dans le menu « Tâche » des tuiles.
-var resource_nodes: Array = []
+## Fournit les tâches proposées dans le menu « Tâche » des tuiles.
+var targets_provider: Callable
 
 var _grid: GridContainer
 var _title: Label
@@ -69,7 +69,7 @@ func sync(survivors: Array) -> void:
 			_tiles.erase(s)
 	for s in survivors:
 		if not _tiles.has(s) and is_instance_valid(s) and s.is_inside_tree():
-			var tile := SurvivorTile.new().setup(s, resource_nodes)
+			var tile := SurvivorTile.new().setup(s, targets_provider)
 			tile.select_requested.connect(func(sv): survivor_selected.emit(sv))
 			tile.assignment_requested.connect(func(sv, node): assignment_requested.emit(sv, node))
 			tile.squad_toggle_requested.connect(func(sv): squad_toggle_requested.emit(sv))

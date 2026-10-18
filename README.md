@@ -26,6 +26,8 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 | Changer de formation | V |
 | Stock d'objets (équiper / ranger) | I, ou bouton en haut à droite |
 | Panneau debug | F1, ou bouton en haut à droite |
+| Mode construction | B, ou bouton « Construire » en bas à droite |
+| Alerte (tout le monde au camp) | H, ou bouton « ALERTE » en bas à droite |
 
 ## Contenu du prototype v0.1
 
@@ -139,6 +141,16 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Le bûcheron rapporte un fagot de bûches sur le dos ; badge « bûche » sur sa vignette.
 - Compteur « Bois » en haut de l'écran, « +10 bois » dans le panneau debug.
 
+## Ajouts v0.15 : constructions et alerte
+
+- **Mode construction (B)** : choisir Mur (2 bois) ou Tourelle (6 bois) ; un aperçu vert/rouge suit la souris sur la grille iso et indique pourquoi un emplacement est refusé. Clic pour poser, clic maintenu pour une ligne de murs, clic droit / Échap pour annuler.
+- **Chantier** : la construction se monte toute seule (mur 4 s, tourelle 8 s), sans survivant ; échafaudage et barre de progression. Un chantier est fragile, ses PV montent avec l'avancement.
+- **Murs** : bloquent les monstres ; les survivants passent (comme par des portes).
+- **Dégâts** : les monstres frappent les constructions collées à eux (8 par coup). Une construction détruite libère sa case. Les survivants, eux, ne sont toujours pas blessés.
+- **Tourelles** : arbalète lourde (14 dégâts, 2 tirs/s, portée 430) qui ne tire que si un survivant y est **assigné** et à son poste (clic droit sur la tourelle avec un survivant contrôlé, ou menu Tâche « Servir : Tourelle n°X »). Voyant vert quand elle est servie ; l'XP revient au servant ; badge viseur sur sa vignette.
+- **Alerte (H)** : tous les survivants libres rentrent se poster autour du feu de camp et tirent ; les servants restent à leur tourelle ; à la levée de l'alerte, chacun reprend sa tâche. Bandeau rouge pendant l'alerte.
+- Debug : chantiers instantanés, construction gratuite.
+
 ## Structure
 
 ```
@@ -153,6 +165,8 @@ scripts/wave_manager.gd   vagues de monstres
 scripts/mob_spawner.gd    générateur de bots
 scripts/ridge.gd          crête rocheuse et bordure de carte
 scripts/terrain.gd        relief et contournement par le passage
+scripts/buildings/        constructions : base, mur, tourelle, gestionnaire de pose
+scripts/ui/build_bar.gd   barre de construction
 scripts/iso_ground.gd     sol isométrique placeholder
 scripts/survivor_appearance.gd  apparence aléatoire et dessin du visage
 scripts/resource_node.gd  points de récolte (mare, cocotiers, forêt)

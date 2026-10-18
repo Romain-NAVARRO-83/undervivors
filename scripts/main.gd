@@ -30,6 +30,11 @@ var notice_label: Label
 var panel: ManagementPanel
 var debug_panel: DebugPanel
 var wave_manager: WaveManager
+var build_manager: BuildManager
+var build_bar: BuildBar
+var alert_button: Button
+var alert_banner: Label
+var alert_active := false
 ## Coffres de loot (GDD 8 bis) : on tire dessus pour les casser.
 ## Ennemis postés sur la carte (camps) et générateurs de bots.
 const ENEMY_CAMPS := [
@@ -114,6 +119,15 @@ func _ready() -> void:
 	wave_manager.wave_cleared.connect(func(n): _notify("Vague n°%d repoussée" % n))
 	add_child(wave_manager)
 
+	# Constructions (murs, tourelles)
+	build_manager = BuildManager.new()
+	build_manager.name = "BuildManager"
+	build_manager.world = world
+	build_manager.stock = stock
+	build_manager.message.connect(_notify)
+	build_manager.placed.connect(func(b): _notify("Chantier lancé : %s" % b.display_name))
+	add_child(build_manager)
+
 	var pickup := ItemPickup.new()
 	pickup.item = load("res://data/weapons/shotgun.tres")
 	pickup.position = Vector2(-160, 160)
@@ -161,6 +175,8 @@ func _register_inputs() -> void:
 		"cycle_formation": [KEY_V],
 		"debug_needs": [KEY_F10],
 		"toggle_debug": [KEY_F1],
+		"toggle_build": [KEY_B],
+		"toggle_alert": [KEY_H],
 	}
 	for action in map:
 		if InputMap.has_action(action):
@@ -188,6 +204,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		debug_starve_all()
 	elif event.is_action_pressed("toggle_debug"):
 		debug_panel.toggle()
+	elif event.is_action_pressed("toggle_build"):
+		toggle_build_mode()
+	elif event.is_action_pressed("toggle_alert"):
+		set_alert(not alert_active)
 	elif event.is_action_pressed("cycle_formation"):
 		formation = ((formation + 1) % Formation.size()) as Formation
 		_notify("Formation : %s" % FORMATION_NAMES[formation])
@@ -217,6 +237,15 @@ func _on_right_click() -> void:
 		if s.global_position.distance_to(mouse + Vector2(0, 12)) < 20.0:
 			_select(s)
 			return
+	for t in get_tree().get_nodes_in_group("turrets"):
+		if t.contains(mouse):
+			if not t.is_built:
+				_notify("La tourelle n'est pas encore terminée")
+			elif is_instance_valid(selected):
+				assign_survivor(selected, t)
+			else:
+				_notify("Sélectionne d'abord un survivant à poster")
+			return
 	for node in resource_nodes:
 		if node.contains(mouse):
 			if is_instance_valid(selected):
@@ -226,16 +255,31 @@ func _on_right_click() -> void:
 			return
 
 
-## Assigne un survivant à un point de récolte (null = libérer).
+## Tâches possibles : points de récolte et tourelles terminées.
+func get_task_targets() -> Array:
+	var out: Array = []
+	out.append_array(resource_nodes)
+	for t in get_tree().get_nodes_in_group("turrets"):
+		if t.is_built and not t.is_destroyed:
+			out.append(t)
+	return out
+
+
+## Assigne un survivant à un point de récolte ou à une tourelle (null = libérer).
 ## S'il était contrôlé, on passe au premier survivant libre.
-func assign_survivor(s: Survivor, node: ResourceNode) -> void:
-	s.assign(node)
+func assign_survivor(s: Survivor, node: Node2D) -> void:
+	if node is Turret:
+		s.assign_post(node)
+	else:
+		if s.post != null:
+			s.assign_post(null)
+		s.assign(node)
 	if node:
 		_notify("%s est assigné·e à : %s" % [s.first_name, node.display_name])
 		if s == selected and not squad_mode:
 			var next: Survivor = null
 			for other in survivors:
-				if other.task_node == null and other != s:
+				if other.task_node == null and other.post == null and other != s:
 					next = other
 					break
 			_select(next)
@@ -503,6 +547,34 @@ func debug_add_random_weapon() -> void:
 	_notify("Stock : +1 %s" % LootTable.item_name(item))
 
 
+# --- Construction et alerte -------------------------------------------------
+
+func toggle_build_mode() -> void:
+	build_bar.visible = not build_bar.visible
+	if not build_bar.visible:
+		build_manager.set_tool("")
+
+
+func _on_build_tool(tool: String) -> void:
+	build_manager.set_tool(tool)
+	if tool != "":
+		build_bar.visible = true
+
+
+## Alerte générale : les survivants libres rentrent défendre le camp ; les
+## servants restent à leur tourelle. À la levée, chacun reprend sa tâche.
+func set_alert(on: bool) -> void:
+	alert_active = on
+	Survivor.alert = on
+	alert_banner.visible = on
+	alert_button.text = "Lever l'alerte  [H]" if on else "ALERTE  [H]"
+	alert_button.add_theme_stylebox_override("normal", UIStyle.box(Color(0.55, 0.12, 0.1) if on else Color(0.35, 0.1, 0.08), Color(1, 0.4, 0.3), 8, 2, 6))
+	for s in survivors:
+		if not s.selected and not s.following and s.post == null:
+			s._say("On rentre au camp !" if on else "Fausse alerte ?", 2.0)
+	_notify("ALERTE : tout le monde au camp !" if on else "Alerte levée : chacun reprend sa tâche")
+
+
 ## Les deux panneaux (survivants, objets) ne s'affichent pas en même temps.
 func _toggle_panel() -> void:
 	loot_panel.visible = false
@@ -573,7 +645,7 @@ func _build_hud() -> void:
 	layer.add_child(toggle)
 
 	panel = ManagementPanel.new()
-	panel.resource_nodes = resource_nodes
+	panel.targets_provider = get_task_targets
 	panel.survivor_selected.connect(_select)
 	panel.assignment_requested.connect(assign_survivor)
 	panel.squad_toggle_requested.connect(toggle_squad_member)
@@ -599,6 +671,47 @@ func _build_hud() -> void:
 	layer.add_child(loot_panel)
 	loot_panel.setup(stock)
 
+	build_bar = BuildBar.new()
+	build_bar.stock = stock
+	build_bar.tool_selected.connect(_on_build_tool)
+	build_manager.tool_changed.connect(build_bar.show_tool)
+	layer.add_child(build_bar)
+	var build_btn := UIStyle.button("Construire  [B]", 15)
+	build_btn.anchor_left = 1.0
+	build_btn.anchor_right = 1.0
+	build_btn.anchor_top = 1.0
+	build_btn.anchor_bottom = 1.0
+	build_btn.offset_left = -232
+	build_btn.offset_right = -12
+	build_btn.offset_top = -140
+	build_btn.offset_bottom = -104
+	build_btn.pressed.connect(toggle_build_mode)
+	layer.add_child(build_btn)
+	alert_button = UIStyle.button("ALERTE  [H]", 15)
+	alert_button.anchor_left = 1.0
+	alert_button.anchor_right = 1.0
+	alert_button.anchor_top = 1.0
+	alert_button.anchor_bottom = 1.0
+	alert_button.offset_left = -232
+	alert_button.offset_right = -12
+	alert_button.offset_top = -98
+	alert_button.offset_bottom = -62
+	alert_button.add_theme_color_override("font_color", Color(1, 0.85, 0.8))
+	alert_button.add_theme_stylebox_override("normal", UIStyle.box(Color(0.35, 0.1, 0.08), Color(1, 0.4, 0.3), 8, 2, 6))
+	alert_button.pressed.connect(func(): set_alert(not alert_active))
+	layer.add_child(alert_button)
+	alert_banner = UIStyle.label("⚠ ALERTE — tout le monde défend le camp", 18, Color(1, 0.4, 0.3))
+	alert_banner.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	alert_banner.add_theme_constant_override("outline_size", 5)
+	alert_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	alert_banner.anchor_left = 0.5
+	alert_banner.anchor_right = 0.5
+	alert_banner.offset_left = -300
+	alert_banner.offset_right = 300
+	alert_banner.offset_top = 88
+	alert_banner.visible = false
+	layer.add_child(alert_banner)
+
 	debug_panel = DebugPanel.new()
 	debug_panel.main = self
 	layer.add_child(debug_panel)
@@ -613,7 +726,7 @@ func _build_hud() -> void:
 	layer.add_child(debug_btn)
 
 	var help := Label.new()
-	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : survivants   I : objets   F1 : debug   F : mode escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou l'assigner à un point de récolte (mare, cocotiers, forêt)   Échap : relâcher (caméra libre)"
+	help.text = "ZQSD / WASD / flèches : bouger   Souris : viser   Clic gauche : tirer   G : survivants   I : objets   B : construire   H : alerte   F1 : debug   F : escouade   V : formation\nTab ou 1-9 : changer de survivant   Clic droit : sélectionner un survivant, ou l'assigner à un point de récolte (mare, cocotiers, forêt)   Échap : relâcher (caméra libre)"
 	help.add_theme_font_size_override("font_size", 13)
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.anchor_top = 1.0

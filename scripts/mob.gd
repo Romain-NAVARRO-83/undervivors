@@ -14,6 +14,9 @@ signal died(mob: Mob)
 var xp_reward: int = 20
 var hp: float = 30.0
 var village_center := Vector2.ZERO
+## Dégâts infligés aux constructions à chaque bond (les survivants, eux, ne sont
+## pas blessés pour l'instant).
+const BUILDING_DAMAGE := 8.0
 
 ## Ennemi posté (GDD : ennemis placés sur la carte et issus des générateurs).
 var posted := false
@@ -39,7 +42,7 @@ func _ready() -> void:
 	add_to_group("enemies")
 	add_to_group("mobs")
 	collision_layer = 2   # touché par les projectiles
-	collision_mask = 4    # obstacles seulement (traverse les survivants)
+	collision_mask = 4 | Building.LAYER  # obstacles et constructions (traverse les survivants)
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = 9.0
@@ -93,6 +96,8 @@ func _physics_process(delta: float) -> void:
 	_t += delta
 	_lunge = maxf(_lunge - delta, 0.0)
 	_lunge_cooldown -= delta
+	if _attack_building():
+		return
 	if posted:
 		_process_posted(delta)
 		return
@@ -114,6 +119,25 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 	move_and_slide()
 	queue_redraw()
+
+
+## Si une construction est collée au monstre, il s'arrête et la frappe.
+func _attack_building() -> bool:
+	var best: Building = null
+	for b in get_tree().get_nodes_in_group("buildings"):
+		if not b.is_destroyed and global_position.distance_to(b.global_position) < 34.0:
+			best = b
+			break
+	if best == null:
+		return false
+	velocity = Vector2.ZERO
+	if _lunge_cooldown <= 0.0:
+		_lunge = 0.25
+		_lunge_cooldown = 1.0
+		best.take_damage(BUILDING_DAMAGE)
+	move_and_slide()
+	queue_redraw()
+	return true
 
 
 func _process_posted(delta: float) -> void:

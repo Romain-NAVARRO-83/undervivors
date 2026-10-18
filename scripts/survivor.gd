@@ -52,6 +52,12 @@ var carrying_type: String = ""
 var work_state: WorkState = WorkState.TO_SOURCE
 ## Récolte suspendue parce que le stock est plein (reprise automatique sous 50 %).
 var work_paused := false
+## Poste de tourelle assigné, et vrai quand le servant est en place.
+var post: Turret = null
+var manning := false
+## Alerte générale : les survivants libres rentrent défendre le camp (GDD 10).
+static var alert := false
+var _alert_offset := Vector2.ZERO
 ## Escouade (GDD 6) : membre de l'escouade enregistrée, et suivi du leader.
 ## `following` est vrai pour les suiveurs quand le mode escouade est actif ;
 ## `follow_point` est la place en formation, calculée par la scène principale.
@@ -212,12 +218,28 @@ func _say(text: String, duration := 3.0) -> void:
 ## Assigne le survivant à un point de récolte, ou le libère avec null.
 ## S'il porte quelque chose, il va d'abord le déposer au village.
 func assign(node: ResourceNode) -> void:
+	if node != null and post != null:
+		assign_post(null)
 	task_node = node
 	work_paused = false
 	if node:
 		_gather_angle = _rng.randf() * TAU
 		_deposit_offset = Vector2(cos(_gather_angle), sin(_gather_angle) * 0.5) * 22.0
 	work_state = WorkState.TO_VILLAGE if carrying > 0 else WorkState.TO_SOURCE
+
+
+## Assigne le survivant au poste d'une tourelle (null = le libérer).
+func assign_post(t: Turret) -> void:
+	if post != null and is_instance_valid(post) and post.gunner == self:
+		post.gunner = null
+	post = t
+	manning = false
+	if t != null:
+		task_node = null
+		work_paused = false
+		if is_instance_valid(t.gunner) and t.gunner != self:
+			t.gunner.assign_post(null)  # un seul servant par tourelle
+		t.gunner = self
 
 
 ## Texte court décrivant l'activité, pour l'interface.
@@ -229,6 +251,10 @@ func activity_text() -> String:
 		return "Suit le leader en formation"
 	if _refilling:
 		return "Va boire et manger au village"
+	if post != null:
+		return ("Sert la %s" if manning else "Rejoint la %s") % post.display_name.to_lower()
+	if alert:
+		return "Alerte : défend le camp"
 	if task_node == null:
 		return "Dépose %d %s" % [carrying, carrying_type] if carrying > 0 else "Erre au village"
 	if work_paused:
@@ -294,7 +320,7 @@ func _process_controlled() -> void:
 	if to_mouse.length() > 1.0:
 		aim_dir = to_mouse.normalized()
 	# Pas de tir quand la souris survole l'interface (panneau, boutons).
-	if Input.is_action_pressed("shoot") and get_viewport().gui_get_hovered_control() == null:
+	if Input.is_action_pressed("shoot") and get_viewport().gui_get_hovered_control() == null and not BuildManager.placing:
 		try_shoot(aim_dir)
 
 
@@ -409,6 +435,16 @@ func _is_squad_mode() -> bool:
 
 
 func _process_autonomous(delta: float) -> void:
+	if post != null and not is_instance_valid(post):
+		post = null
+		manning = false
+	if post != null:
+		_process_post(delta)
+		return
+	if alert:
+		_process_alert()
+		_autonomous_shooting()
+		return
 	if _going_to_refill():
 		# Assoiffé ou affamé : il va au stock de lui-même (GDD 9), puis reprend.
 		_move_towards(village_center + _deposit_offset, move_speed() * 0.8)
@@ -417,6 +453,30 @@ func _process_autonomous(delta: float) -> void:
 	else:
 		_process_wander(delta)
 	_autonomous_shooting()
+
+
+## Servant de tourelle : rejoint le poste et y reste ; c'est la tourelle qui tire.
+## Il va quand même boire et manger s'il en a besoin, puis revient.
+func _process_post(_delta: float) -> void:
+	if _going_to_refill():
+		manning = false
+		_move_towards(village_center + _deposit_offset, move_speed() * 0.8)
+		return
+	if not post.is_built:
+		manning = false
+		_move_towards(post.mount_point() + Vector2(0, 26), move_speed())
+		return
+	manning = _move_towards(post.mount_point(), move_speed())
+	if not manning:
+		_autonomous_shooting()
+
+
+## Alerte : retour au camp, on se poste autour du feu et on tire.
+func _process_alert() -> void:
+	if _alert_offset == Vector2.ZERO:
+		var a := _rng.randf() * TAU
+		_alert_offset = Vector2(cos(a), sin(a) * 0.5) * _rng.randf_range(30.0, 60.0)
+	_move_towards(village_center + _alert_offset, move_speed())
 
 
 ## Cycle de récolte : aller au point, récolter, rapporter au centre, déposer.

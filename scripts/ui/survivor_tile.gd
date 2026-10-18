@@ -4,7 +4,7 @@ extends PanelContainer
 ## stats en barres de progression, points à attribuer et équipement.
 
 signal select_requested(survivor: Survivor)
-signal assignment_requested(survivor: Survivor, node: ResourceNode)
+signal assignment_requested(survivor: Survivor, node: Node2D)
 signal squad_toggle_requested(survivor: Survivor)
 
 const SQUAD_MAX := 4
@@ -21,7 +21,9 @@ const ROWS := [
 ]
 
 var survivor: Survivor
-var resource_nodes: Array = []
+## Fournit la liste des tâches possibles (points de récolte, tourelles finies).
+var targets_provider: Callable
+var _targets: Array = []
 
 var _portrait: SurvivorPortrait
 var _activity: Label
@@ -39,9 +41,9 @@ var _style_hover: StyleBoxFlat
 var _style_selected: StyleBoxFlat
 
 
-func setup(s: Survivor, nodes: Array = []) -> SurvivorTile:
+func setup(s: Survivor, provider: Callable) -> SurvivorTile:
 	survivor = s
-	resource_nodes = nodes
+	targets_provider = provider
 	return self
 
 
@@ -130,10 +132,7 @@ func _ready() -> void:
 	_task.add_theme_stylebox_override("normal", UIStyle.box(UIStyle.BAR_BG, UIStyle.BORDER, 6, 1, 4))
 	_task.add_theme_stylebox_override("hover", UIStyle.box(UIStyle.BAR_BG, UIStyle.ACCENT, 6, 1, 4))
 	_task.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_task.add_item("Aucune (errance)", 0)
-	for i in resource_nodes.size():
-		var node: ResourceNode = resource_nodes[i]
-		_task.add_item("Récolte : %s (%s)" % [node.display_name, node.resource_type], i + 1)
+	_rebuild_task_items()
 	_task.item_selected.connect(_on_task_selected)
 	task_row.add_child(_task)
 	_activity = UIStyle.label("", 12, UIStyle.TEXT_DIM)
@@ -141,8 +140,20 @@ func _ready() -> void:
 	refresh()
 
 
+func _rebuild_task_items() -> void:
+	_targets = targets_provider.call() if targets_provider.is_valid() else []
+	_task.clear()
+	_task.add_item("Aucune (errance)", 0)
+	for i in _targets.size():
+		var node = _targets[i]
+		if node is ResourceNode:
+			_task.add_item("Récolte : %s (%s)" % [node.display_name, node.resource_type], i + 1)
+		else:
+			_task.add_item("Servir : %s" % node.display_name, i + 1)
+
+
 func _on_task_selected(index: int) -> void:
-	var node: ResourceNode = null if index == 0 else resource_nodes[index - 1]
+	var node: Node2D = null if index == 0 else _targets[index - 1]
 	assignment_requested.emit(survivor, node)
 
 
@@ -204,7 +215,12 @@ func refresh() -> void:
 			names.append(LootTable.item_name(it))
 		bag += " : " + ", ".join(names)
 	_weapon.text += "\n" + bag
-	var wanted := 0 if s.task_node == null else resource_nodes.find(s.task_node) + 1
+	# La liste des tâches change quand on construit ou perd une tourelle.
+	var now: Array = targets_provider.call() if targets_provider.is_valid() else []
+	if now != _targets and not _task.get_popup().visible:
+		_rebuild_task_items()
+	var current: Node2D = s.post if s.post != null else s.task_node
+	var wanted := 0 if current == null else _targets.find(current) + 1
 	if _task.selected != wanted:
 		_task.select(wanted)
 	_activity.text = "→ " + s.activity_text()

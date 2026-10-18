@@ -28,7 +28,7 @@ var badge_paused := false:
 func show_survivor(s: Survivor) -> void:
 	appearance = s.appearance
 	is_hero = s.is_hero
-	task_badge = s.task_node.resource_type if s.task_node else ""
+	task_badge = "tourelle" if s.post != null else (s.task_node.resource_type if s.task_node else "")
 	badge_paused = s.work_paused
 
 
@@ -64,6 +64,12 @@ func _draw_badge(p: Vector2, r: float) -> void:
 		var blue := Color(0.25, 0.55, 0.9, a)
 		draw_circle(p + Vector2(0, r * 0.22), r * 0.45, blue)
 		draw_colored_polygon(PackedVector2Array([p + Vector2(-r * 0.4, r * 0.1), p + Vector2(r * 0.4, r * 0.1), p + Vector2(0, -r * 0.65)]), blue)
+	elif task_badge == "tourelle":
+		# Viseur
+		var col := Color(0.75, 0.25, 0.2, a)
+		draw_arc(p, r * 0.5, 0.0, TAU, 16, col, maxf(1.2, r * 0.15))
+		draw_line(p + Vector2(-r * 0.75, 0), p + Vector2(r * 0.75, 0), col, maxf(1.0, r * 0.12))
+		draw_line(p + Vector2(0, -r * 0.75), p + Vector2(0, r * 0.75), col, maxf(1.0, r * 0.12))
 	elif task_badge == "bois":
 		# Bûche vue de biais : corps + cerne
 		draw_rect(Rect2(p + Vector2(-r * 0.55, -r * 0.22), Vector2(r * 1.0, r * 0.44)), Color(0.5, 0.33, 0.18, a))

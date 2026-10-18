@@ -79,6 +79,18 @@ func _ready() -> void:
 	_button(mg, "Réapparition coffres", func(): main.respawn_chests())
 	_button(mg, "Replacer les ennemis", func(): main.setup_map_enemies())
 	_button(mg, "Détruire générateurs", func(): main.debug_destroy_spawners())
+	var bi := CheckBox.new()
+	bi.text = "Chantiers instantanés"
+	bi.focus_mode = Control.FOCUS_NONE
+	bi.add_theme_font_size_override("font_size", 12)
+	bi.toggled.connect(func(on): main.build_manager.instant = on)
+	mg.add_child(bi)
+	var bf := CheckBox.new()
+	bf.text = "Construction gratuite"
+	bf.focus_mode = Control.FOCUS_NONE
+	bf.add_theme_font_size_override("font_size", 12)
+	bf.toggled.connect(func(on): main.build_manager.free_build = on)
+	mg.add_child(bf)
 	var trow := HBoxContainer.new()
 	trow.add_theme_constant_override("separation", 6)
 	root.add_child(trow)

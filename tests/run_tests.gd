@@ -24,6 +24,13 @@ var _wall: Survivor
 var _picker: Survivor
 var _healer_bot: Mob
 var _healer_hp := 0.0
+var _wall_b: Building
+var _turret_b: Turret
+var _gunner: Survivor
+var _basher: Mob
+var _target_mob: Mob
+var _wall_hp := 0.0
+var _alerted: Survivor
 
 
 func _init() -> void:
@@ -248,6 +255,69 @@ func _process(_delta: float) -> bool:
 	if _frames == 3420:
 		check(is_instance_valid(_healer_bot) and _healer_bot.hp > _healer_hp + 2.0, "un bot dans la zone d'un générateur se soigne (%.0f → %.0f PV)" % [_healer_hp, _healer_bot.hp])
 	if _frames == 3421:
+		# --- Constructions ---
+		var bm: BuildManager = _main.build_manager
+		_main.wave_manager.kill_all()
+		_main.stock.take("bois", 999)
+		var t_wall := BuildManager.world_to_tile(Vector2(-160, 60))
+		check(bm.place("mur", t_wall) == null, "pas de bois : construction refusée")
+		_main.stock.add("bois", 20)
+		_wall_b = bm.place("mur", t_wall)
+		check(_wall_b != null and _main.stock.get_amount("bois") == 18, "mur posé : 2 bois dépensés")
+		check(_wall_b != null and not _wall_b.is_built, "le mur commence en chantier")
+		check(bm.place("mur", t_wall) == null, "case déjà occupée : refus")
+		check(bm.check_tile(BuildManager.world_to_tile(Vector2(Terrain.RIDGE_X, -250)), "mur") != "", "impossible de construire sur la crête")
+		_turret_b = bm.place("tourelle", BuildManager.world_to_tile(Vector2(-60, 140)))
+		check(_turret_b != null and _main.stock.get_amount("bois") == 12, "tourelle posée : 6 bois dépensés")
+	if _frames == 3421 + 260:
+		check(_wall_b.is_built and is_equal_approx(_wall_b.hp, _wall_b.max_hp), "le chantier du mur se termine tout seul (4 s)")
+		check(not _turret_b.is_built, "la tourelle prend plus de temps (8 s)")
+		_turret_b.finish()
+		check(_main.get_task_targets().has(_turret_b), "la tourelle terminée apparaît dans les tâches")
+		_gunner = _main.survivors[3]
+		_main._select(null)
+		_gunner.thirst = 100.0
+		_gunner.hunger = 100.0
+		_main.assign_survivor(_gunner, _turret_b)
+		check(_gunner.post == _turret_b and _turret_b.gunner == _gunner, "survivant assigné à la tourelle")
+		# Monstre collé au mur : il le frappe
+		_basher = Mob.new()
+		_basher.posted = true
+		_basher.home = _wall_b.global_position + Vector2(-22, 0)
+		_basher.aggro_range = 0.0
+		_basher.position = _basher.home
+		_main.world.add_child(_basher)
+		_wall_hp = _wall_b.hp
+	if _frames == 3421 + 560:
+		check(_gunner.manning and _turret_b.is_manned(), "le servant est à son poste")
+		check(not is_instance_valid(_basher) or _wall_b.hp < _wall_hp, "un monstre au contact abîme le mur (%.0f → %.0f)" % [_wall_hp, _wall_b.hp])
+		# Cible pour la tourelle
+		_target_mob = Mob.new()
+		_target_mob.posted = true
+		_target_mob.home = _turret_b.global_position + Vector2(260, -40)
+		_target_mob.aggro_range = 0.0
+		_target_mob.position = _target_mob.home
+		_main.world.add_child(_target_mob)
+		var t_kill := _wall_b.tile
+		_wall_b.take_damage(9999.0)
+		check(_wall_b.is_destroyed and not _main.build_manager.occupied.has(t_kill), "mur détruit : la case se libère")
+	if _frames == 3421 + 800:
+		check(not is_instance_valid(_target_mob) or not _target_mob.is_alive(), "la tourelle servie abat le monstre à portée")
+		# --- Alerte ---
+		_main._select(null)
+		_alerted = _main.survivors[2]
+		_alerted.thirst = 100.0
+		_alerted.hunger = 100.0
+		_main.assign_survivor(_alerted, _main.resource_nodes[2])
+		_alerted.global_position = Vector2(-190, -250)
+		_main.set_alert(true)
+		check(Survivor.alert and _main.alert_banner.visible, "alerte déclenchée")
+	if _frames == 3421 + 1100:
+		check(_alerted.global_position.distance_to(Vector2.ZERO) < 80.0, "alerte : le récolteur est rentré au camp (%.0f px)" % _alerted.global_position.distance_to(Vector2.ZERO))
+		check(_gunner.post == _turret_b, "alerte : le servant reste à sa tourelle")
+		check(_alerted.activity_text() == "Alerte : défend le camp", "activité : défend le camp")
+		_main.set_alert(false)
+		check(not Survivor.alert and _alerted.task_node == _main.resource_nodes[2], "alerte levée : il garde sa tâche et la reprend")
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false
