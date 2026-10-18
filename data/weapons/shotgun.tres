@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapon_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Fusil à pompe rouillé"
+damage = 7.0
+fire_rate = 1.2
+bullets_per_shot = 6
+spread_deg = 28.0
+projectile_speed = 650.0
+max_range = 260.0
+element = 1
+element_damage = 2.0
+projectile_color = Color(1, 0.55, 0.2, 1)
