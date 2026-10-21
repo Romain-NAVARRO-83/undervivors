@@ -448,9 +448,12 @@ func _process_posted(delta: float) -> void:
 func _nearest_survivor() -> Node2D:
 	var best: Node2D = null
 	var best_d := aggro_range
+	var ranged := is_ranged()
 	for s in get_tree().get_nodes_in_group("survivors"):
 		if not s.is_alive():
 			continue
+		if s.manning and not ranged:
+			continue  # servant perché sur sa tourelle : hors d'atteinte au corps à corps
 		var d := global_position.distance_to(s.global_position)
 		if d < best_d:
 			best_d = d

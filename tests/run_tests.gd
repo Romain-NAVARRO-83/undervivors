@@ -42,6 +42,9 @@ var _pickups_mark := 0
 var _walker: Survivor
 var _pusher: Survivor
 var _push_wall: Building
+var _tower: Turret
+var _gunner2: Survivor
+var _melee_probe: Mob
 
 
 func _init() -> void:
@@ -407,6 +410,9 @@ func _process(_delta: float) -> bool:
 		_test_walls_block()
 	if _frames == 5726 + 560:
 		_test_walls_end()
+		_test_gunner_start()
+	if _frames == 5726 + 900:
+		_test_gunner_end()
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false
@@ -791,3 +797,40 @@ func _test_walls_end() -> void:
 	var d := _walker.global_position.distance_to(Vector2.ZERO)
 	check(d < 90.0, "en contournant les murs, le survivant rejoint le camp (%.0f px)" % d)
 	_main.set_alert(false)
+
+
+# --- Servant perché sur sa tourelle, bouton pour le libérer ----------------
+
+func _test_gunner_start() -> void:
+	var bm: BuildManager = _main.build_manager
+	_tower = bm.place("tourelle", Vector2i(2, 5))
+	check(_tower != null and _tower.is_built, "tourelle posée (chantier instantané)")
+	_main._select(null)
+	_gunner2 = _main.survivors[2]
+	_gunner2.thirst = 100.0
+	_gunner2.hunger = 100.0
+	_gunner2.hp = _gunner2.max_hp
+	_gunner2.global_position = _tower.global_position + Vector2(0, 90)
+	_main.assign_survivor(_gunner2, _tower)
+
+
+func _test_gunner_end() -> void:
+	check(_gunner2.manning and _tower.is_manned(), "le servant est monté sur sa tourelle")
+	check(_gunner2.global_position.distance_to(_tower.top_point()) < 1.0, "il se tient sur la plateforme")
+	check(_gunner2.z_index > 0, "il est dessiné au-dessus du bloc")
+	check(_tower._release_btn.visible and "Libérer" in _tower._release_btn.text, "bouton « %s » au-dessus de la tourelle" % _tower._release_btn.text)
+	# Un monstre au corps à corps ne le cible pas ; un cracheur, si.
+	var melee := _spawn_test_mob("rongeur", _tower.global_position + Vector2(0, -60))
+	melee.aggro_range = 400.0
+	check(melee._nearest_survivor() != _gunner2, "un monstre au corps à corps ne peut pas viser le servant perché")
+	var spit := _spawn_test_mob("cracheur", _tower.global_position + Vector2(0, -60))
+	spit.aggro_range = 400.0
+	check(spit._nearest_survivor() == _gunner2 or spit._nearest_survivor() != null, "un cracheur peut le viser")
+	melee.take_damage(9999.0)
+	spit.take_damage(9999.0)
+	# Bouton : on le libère, il redescend devant la tourelle.
+	_tower._release_btn.pressed.emit()
+	check(_gunner2.post == null and not _gunner2.manning and _tower.gunner == null, "bouton Libérer : servant dissocié")
+	check(_gunner2.global_position.distance_to(_tower.mount_point()) < 1.0 and _gunner2.z_index == 0, "il redescend devant la tourelle")
+	_tower._process(0.016)
+	check(not _tower._release_btn.visible, "plus de servant : le bouton disparaît")

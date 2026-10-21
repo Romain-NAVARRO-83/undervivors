@@ -27,9 +27,36 @@ func _init() -> void:
 	display_name = "Tourelle n°%d" % number
 
 
+var _release_btn: Button
+
+
 func _ready() -> void:
 	super._ready()
 	add_to_group("turrets")
+	# Bouton au-dessus de la tourelle pour libérer le servant.
+	_release_btn = UIStyle.button("Libérer", 10)
+	_release_btn.visible = false
+	_release_btn.z_index = 30
+	_release_btn.focus_mode = Control.FOCUS_NONE
+	_release_btn.tooltip_text = "Dissocier le servant de cette tourelle"
+	_release_btn.pressed.connect(release_gunner)
+	add_child(_release_btn)
+
+
+## Dissocie le servant de la tourelle (il redescend et retourne errer au camp).
+func release_gunner() -> void:
+	if is_instance_valid(gunner) and gunner.post == self:
+		gunner.assign_post(null)
+	gunner = null
+
+
+func _update_release_button() -> void:
+	var show := is_instance_valid(gunner) and gunner.post == self and not is_destroyed and not BuildManager.placing
+	_release_btn.visible = show
+	if show:
+		_release_btn.text = "Libérer %s" % gunner.first_name
+		_release_btn.reset_size()
+		_release_btn.position = Vector2(-_release_btn.size.x / 2.0, -_top() - 26.0)
 
 
 func block_height() -> float:
@@ -46,6 +73,11 @@ func mount_point() -> Vector2:
 	return global_position + Vector2(0, HH + 12.0)
 
 
+## Point où se tient le servant une fois monté sur la plateforme.
+func top_point() -> Vector2:
+	return global_position + Vector2(-6, -block_height() + 2.0)
+
+
 func is_manned() -> bool:
 	return is_built and is_instance_valid(gunner) and gunner.post == self and gunner.manning
 
@@ -55,6 +87,7 @@ func _process(delta: float) -> void:
 	if gunner != null and (not is_instance_valid(gunner) or gunner.post != self):
 		gunner = null
 	_cooldown = maxf(_cooldown - delta, 0.0)
+	_update_release_button()
 	if not is_manned():
 		return
 	var target := _nearest_enemy()

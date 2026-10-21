@@ -216,8 +216,13 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - **Murs et tourelles infranchissables** pour tous, survivants compris. Survivants et monstres les **contournent** (navigation A* sur la grille des tuiles, `scripts/nav.gd`) : les murs canalisent les monstres vers les passages.
 - Un monstre **bloqué** contre une construction (ou à l'arrêt à son contact) la frappe ; sinon il la contourne.
 - **Impossible de fermer une enceinte** : une pose est refusée si une case libre de la place du camp se retrouvait coupée de l'extérieur (« Fermerait une enceinte : laissez un passage »). Deux constructions qui se touchent par un coin bloquent le passage entre elles.
-- Le servant d'une tourelle se tient juste devant elle.
 - **Anticrénelage 2D** (MSAA 4×) : bords des formes plus lisses (rendu Forward+).
+
+## Ajouts v0.24 : servants perchés sur les tourelles
+
+- Le servant **monte sur la plateforme** de sa tourelle et y reste ; il redescend devant elle quand il la quitte (boire, manger, reprise en main, tourelle détruite).
+- Perché, il est **hors d'atteinte des monstres au corps à corps** ; les cracheurs peuvent encore le viser.
+- Bouton **« Libérer <prénom> »** au-dessus de chaque tourelle servie : dissocie le servant, qui redescend et retourne errer au camp.
 ## Structure
 
 ```

@@ -254,10 +254,10 @@ func assign(node: ResourceNode) -> void:
 
 ## Assigne le survivant au poste d'une tourelle (null = le libérer).
 func assign_post(t: Turret) -> void:
+	_set_manning(false)
 	if post != null and is_instance_valid(post) and post.gunner == self:
 		post.gunner = null
 	post = t
-	manning = false
 	if t != null:
 		task_node = null
 		work_paused = false
@@ -330,6 +330,8 @@ func _physics_process(delta: float) -> void:
 	_cooldown = max(_cooldown - delta, 0.0)
 	_update_needs(delta)
 	_update_health(delta)
+	if manning and (selected or following):
+		_set_manning(false)  # repris en main : il descend de la tourelle
 	if selected:
 		_process_controlled()
 	elif following:
@@ -464,7 +466,7 @@ func _is_squad_mode() -> bool:
 func _process_autonomous(delta: float) -> void:
 	if post != null and not is_instance_valid(post):
 		post = null
-		manning = false
+		_set_manning(false)
 	if post != null:
 		_process_post(delta)
 		return
@@ -493,16 +495,40 @@ func _process_autonomous(delta: float) -> void:
 ## Il va quand même boire et manger s'il en a besoin, puis revient.
 func _process_post(_delta: float) -> void:
 	if _going_to_refill():
-		manning = false
+		_set_manning(false)
 		_move_towards(village_center + _deposit_offset, move_speed() * 0.8)
 		return
 	if not post.is_built:
-		manning = false
+		_set_manning(false)
 		_move_towards(post.mount_point() + Vector2(0, 26), move_speed())
 		return
-	manning = _move_towards(post.mount_point(), move_speed())
-	if not manning:
+	if manning:
+		# Sur la plateforme : il ne bouge plus, c'est la tourelle qui tire.
+		global_position = post.top_point()
+		velocity = Vector2.ZERO
+		return
+	if _move_towards(post.mount_point(), move_speed()):
+		_set_manning(true)
+	else:
 		_autonomous_shooting()
+
+
+## Monte sur la tourelle (on) ou en redescend devant elle (off).
+## Sur la plateforme, il est dessiné au-dessus du bloc et ne heurte plus la
+## construction ; les monstres au corps à corps ne peuvent pas l'atteindre.
+func _set_manning(on: bool) -> void:
+	if on == manning:
+		return
+	manning = on
+	if on:
+		z_index = 1
+		collision_mask = 2 | 4
+		global_position = post.top_point()
+	else:
+		z_index = 0
+		collision_mask = 2 | 4 | Building.LAYER
+		if post != null and is_instance_valid(post):
+			global_position = post.mount_point()
 
 
 ## Alerte : retour au camp, on se poste autour du feu et on tire.
