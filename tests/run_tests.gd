@@ -470,7 +470,7 @@ func test_level_up() -> void:
 	check(s.spend_point("pv_max") and s.max_hp == 110 and s.hp == 110, "point en PV max (+10)")
 	check(s.stat_points == 0, "points épuisés")
 	check(is_equal_approx(s.move_speed(), 158.0), "vitesse 6 → 158 px/s")
-	check(s.carry_capacity() == 4, "niveau 3 → porte 4 par trajet")
+	check(s.carry_capacity() == 8, "niveau 3 → porte 8 par trajet")
 	s.free()
 
 

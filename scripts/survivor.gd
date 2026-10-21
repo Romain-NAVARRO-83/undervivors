@@ -11,6 +11,12 @@ const XP_PER_LEVEL := 100
 ## Valeur maximale affichée pour les stats (barres du panneau).
 const STAT_MAX := 20
 const HP_PER_POINT := 10
+## Récolte (GDD 9) : quantité portée par trajet = CARRY_BASE + CARRY_PER_LEVEL × niveau
+## (4 au niveau 1, 8 au niveau 3), et vitesse pendant les trajets de récolte
+## (× la vitesse normale : plus rapide que la marche ordinaire).
+const CARRY_BASE := 2
+const CARRY_PER_LEVEL := 2
+const WORK_SPEED_MULT := 1.2
 
 ## Statistiques (GDD 5.1). Vitesse, précision et force vont de 1 à STAT_MAX.
 @export var max_hp: int = 100
@@ -165,7 +171,7 @@ func spread_factor() -> float:
 
 ## Quantité rapportée par trajet : liée au niveau (GDD 9).
 func carry_capacity() -> int:
-	return 1 + level
+	return CARRY_BASE + CARRY_PER_LEVEL * level
 
 
 ## Taille du sac : 4 objets au niveau 1, +2 par niveau (l'arme équipée ne compte pas).
@@ -505,7 +511,7 @@ func _process_alert() -> void:
 
 ## Cycle de récolte : aller au point, récolter, rapporter au centre, déposer.
 func _process_work(delta: float) -> void:
-	var speed := move_speed() * 0.75
+	var speed := move_speed() * WORK_SPEED_MULT
 	# Stock plein : on arrête la récolte ; reprise quand il repasse sous 50 %.
 	if task_node != null and stock != null:
 		var res := task_node.resource_type

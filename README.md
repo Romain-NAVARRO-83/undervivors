@@ -199,6 +199,12 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
   - Résistances et faiblesses multiplient la part élémentaire ; immunité = ni dégâts ni effet (« Immunisé » s'affiche). Chiffres colorés par élément, « ! » sur une faiblesse.
   - Un monstre tué par brûlure, poison ou arc donne son XP au dernier tireur.
 - Debug (F1) : niveau et type des vagues (ou « Mixte ») ; le niveau sert aussi aux vagues automatiques.
+
+## Ajouts v0.21 : récolte plus efficace
+
+- Quantité rapportée par trajet : **2 + 2 × niveau** (4 au niveau 1, 8 au niveau 3), au lieu de 1 + niveau.
+- Les récolteurs vont **plus vite** sur leurs trajets : 1,2 × leur vitesse normale (au lieu de 0,75 ×).
+- Réglages dans `scripts/survivor.gd` : `CARRY_BASE`, `CARRY_PER_LEVEL`, `WORK_SPEED_MULT`.
 ## Structure
 
 ```
