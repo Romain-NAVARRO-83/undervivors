@@ -208,7 +208,6 @@ scripts/survivor.gd       survivant : contrôle, errance, tir autonome, stats
 scripts/name_generator.gd générateur de noms par syllabes multi-pays
 scripts/weapon_data.gd    ressource « arme » (dégâts, cadence, dispersion, élément…)
 scripts/projectile.gd     projectile
-scripts/mob.gd            monstre de base (sans dégâts pour l'instant)
 scripts/wave_manager.gd   vagues de monstres
 scripts/mob_spawner.gd    générateur de bots
 scripts/ridge.gd          crête rocheuse et bordure de carte
