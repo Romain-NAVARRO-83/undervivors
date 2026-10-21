@@ -110,6 +110,10 @@ var _healing := false
 ## Mode histoire : faim/soif et soin au camp peuvent être coupés (prologue).
 var needs_enabled := true
 var camp_regen := true
+## Mode histoire : commence sans arme (pas de lance-pierre par défaut).
+var unarmed_start := false
+## Mode histoire : PV minimum (> 0 = ne peut pas mourir, ex. l'ami du prologue).
+var hp_floor := 0
 
 var thirst: float = NEED_MAX
 var hunger: float = NEED_MAX
@@ -142,7 +146,7 @@ func _ready() -> void:
 	if first_name.is_empty():
 		first_name = NameGenerator.generate_part(_rng)["text"]
 		last_name = NameGenerator.generate_part(_rng)["text"]
-	if weapon == null:
+	if weapon == null and not unarmed_start:
 		weapon = load("res://data/weapons/slingshot.tres")
 	if appearance == null:
 		appearance = SurvivorAppearance.random(_rng)
@@ -628,7 +632,7 @@ func _autonomous_shooting() -> void:
 	var target := _nearest_enemy()
 	if following and _focus_valid():
 		var near_enemy := target != null and global_position.distance_to(target.global_position) < FOCUS_DEFEND_RANGE
-		if not near_enemy and global_position.distance_to(squad_focus.global_position) <= weapon.max_range:
+		if weapon != null and not near_enemy and global_position.distance_to(squad_focus.global_position) <= weapon.max_range:
 			target = squad_focus
 	if target:
 		var dir: Vector2 = (target.global_position - global_position).normalized()
@@ -657,6 +661,8 @@ func _pick_wander_target() -> void:
 
 func _nearest_enemy() -> Node2D:
 	var best: Node2D = null
+	if weapon == null:
+		return null  # sans arme : ne vise personne
 	var best_dist := weapon.max_range
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e.has_method("is_alive") and not e.is_alive():
@@ -712,15 +718,18 @@ func is_alive() -> bool:
 	return not _dead
 
 
-## Vrai si le survivant est sur la place du camp (zone où l'on se soigne).
+## Vrai si le survivant est sur la place du camp (zone où l'on se soigne),
+## autour du centre de son village.
 func in_camp() -> bool:
-	return IsoGround.in_village(BuildManager.world_to_tile(global_position))
+	return IsoGround.in_village(BuildManager.world_to_tile(global_position - village_center))
 
 
 func take_damage(amount: float) -> void:
 	if _dead:
 		return
 	hp -= int(amount)
+	if hp_floor > 0:
+		hp = maxi(hp, hp_floor)
 	_since_hit = 0.0
 	_hurt_flash = 0.15
 	_spawn_damage_number(amount)
@@ -814,8 +823,9 @@ func _draw() -> void:
 			draw_rect(Rect2(7, -18, 9, 9), Color(0.45, 0.32, 0.2))
 			draw_rect(Rect2(8, -17, 7, 3), col)
 			draw_arc(Vector2(11.5, -18), 4.5, PI, TAU, 8, Color(0.3, 0.25, 0.2), 1.2)
-	# Visée
-	draw_line(Vector2(0, -12), Vector2(0, -12) + aim_dir * 18.0, Color(0.2, 0.15, 0.1), 3.0)
+	# Visée (seulement avec une arme)
+	if weapon != null:
+		draw_line(Vector2(0, -12), Vector2(0, -12) + aim_dir * 18.0, Color(0.2, 0.15, 0.1), 3.0)
 	# Barre de PV
 	var w := 24.0
 	draw_rect(Rect2(-w / 2, -38, w, 3), Color(0.2, 0, 0))

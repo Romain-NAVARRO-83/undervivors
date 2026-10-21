@@ -1,5 +1,5 @@
 extends SceneTree
-## Tests automatisés du mode histoire (prologue « La plage »), sans fenêtre :
+## Tests automatisés du mode histoire (prologue), sans fenêtre :
 ##   godot --headless --fixed-fps 60 --path . -s tests/run_story_tests.gd
 
 var _failures := 0
@@ -7,8 +7,10 @@ var _checks := 0
 var _f := 0
 var _p: Node
 var _s: Survivor
+var _a: Survivor
 var _y0 := 0.0
-var _x0 := 0.0
+var _hp_mark := 0
+var _done_frame := -1
 
 
 func _init() -> void:
@@ -30,18 +32,25 @@ func _process(_d: float) -> bool:
 	_f += 1
 	if _f == 2:
 		_s = _p.survivor
-		check(_p.get_tree().get_nodes_in_group("survivors").size() == 1, "un seul survivant")
-		check(_s.selected, "il est contrôlé directement")
+		_a = _p.friend
+		check(_p.controlled == _s and _s.selected, "on contrôle le premier survivant")
+		check(_s.weapon == null and _a.weapon == null, "les survivants commencent sans arme")
 		check(not _s.needs_enabled, "pas de faim ni de soif dans le prologue")
 		check(_p.step == _p.Step.WAKE, "on commence au réveil")
+		var beach_mobs := 0
+		for m in _p.get_tree().get_nodes_in_group("mobs"):
+			if BeachMap.in_butte_span(m.global_position.x) and m.global_position.y > BeachMap.butte_y(m.global_position.x):
+				beach_mobs += 1
+		check(beach_mobs == 0, "aucun monstre sur la plage")
+		check(_p.get_tree().get_nodes_in_group("chests").is_empty(), "pas de coffre sur la plage")
 	if _f == 420:
 		check(_p.step == _p.Step.MOVE, "après le réveil : apprendre à se déplacer")
-		check(_s.bubble.is_showing() or _p._wake_line == 3, "monologue du réveil")
 		Input.action_press("move_right")
 	if _f == 470:
 		Input.action_release("move_right")
-		check(_p.step == _p.Step.FOLLOW, "en bougeant : longer la butte")
-		# La butte bloque vers le nord
+		check(_p.step == _p.Step.FOLLOW_BUTTE, "en bougeant : longer la butte")
+		check(_p._arrow.target == _p.FRIEND_POS, "la flèche montre la direction")
+		# Butte, mer et falaise bloquent
 		_s.global_position = Vector2(0, BeachMap.butte_y(0) + 70)
 		_y0 = BeachMap.butte_y(0)
 		Input.action_press("move_up")
@@ -57,45 +66,54 @@ func _process(_d: float) -> bool:
 	if _f == 760:
 		Input.action_release("move_left")
 		check(_s.global_position.x > BeachMap.BUTTE_START - 40.0, "falaise à l'ouest")
-		# Coffre
-		_s.global_position = Vector2(-400, 40)
-	if _f == 765:
-		check(_p.step == _p.Step.CHEST, "objectif : le coffre")
-		_p.chest.take_damage(999.0)
-	if _f == 770:
-		check(_p.step == _p.Step.PICKUP, "coffre cassé : ramasser")
-	if _f == 820:
-		var pickups: Array = _p.get_tree().get_nodes_in_group("item_pickups")
-		check(pickups.size() == 1, "le coffre contient un objet")
-		if pickups.size() == 1:
-			_s.global_position = pickups[0].global_position
-	if _f == 830:
-		check(_s.weapon.weapon_name == "Pistolet rouillé", "le pistolet est équipé (%s)" % _s.weapon.weapon_name)
-		check(_p.step == _p.Step.FIRST_MOB, "étape suivante : premier monstre")
-		# Le premier monstre mord : PV en baisse au contact
-		_s.global_position = _p.first_mob.global_position + Vector2(-14, 0)
-	if _f == 950:
-		check(_s.hp < _s.max_hp, "le monstre du prologue mord (%d PV)" % _s.hp)
-		_p.first_mob.take_damage(999.0)
-		_s.hp = _s.max_hp
-	if _f == 955:
-		check(_p.step == _p.Step.DUO, "premier monstre abattu")
-		for m in _p.duo:
-			m.take_damage(999.0)
-	if _f == 960:
-		check(_p.step == _p.Step.ROUND_BUTTE, "les deux suivants abattus : contourner la butte")
-		# On contourne vraiment la butte à pied : vers l'est, puis le nord.
+		# Au bout de la butte, on la contourne à pied et on rencontre l'ami.
 		_s.global_position = Vector2(BeachMap.BUTTE_END - 120, BeachMap.butte_y(BeachMap.BUTTE_END) + 70)
 		Input.action_press("move_right")
-	if _f == 1060:
+	if _f == 860:
 		Input.action_release("move_right")
 		Input.action_press("move_up")
-	if _f == 1180:
+	if _f == 960:
 		Input.action_release("move_up")
 		check(BeachMap.past_butte(_s.global_position), "au bout de la butte, on passe de l'autre côté (%s)" % _s.global_position)
-	if _f == 1185:
-		check(_p.step == _p.Step.DONE, "prologue terminé")
-	if _f == 1500:
+		check(_p.step == _p.Step.MEET, "rencontre du second survivant")
+	if _f == 960 + 480:
+		check(_p.step == _p.Step.TO_REFUGE and _a.following, "il se joint à nous et nous suit")
+		check(_p.controlled == _s, "pas de changement de survivant pour l'instant")
+		Input.action_press("move_left")
+	if _f == 960 + 540:
+		Input.action_release("move_left")
+	if _f == 960 + 620:
+		check(_a.global_position.distance_to(_s.global_position) < 70.0, "l'ami suit de près (%.0f px)" % _a.global_position.distance_to(_s.global_position))
+		# Embuscade en entrant dans la zone des monstres
+		_s.global_position = Vector2(2380, -380)
+		_a.global_position = Vector2(2400, -340)
+	if _f == 960 + 700:
+		check(_p._ambushed, "embuscade déclenchée")
+		check(_a.hp < _a.max_hp and _p._ambush_bitten, "l'ami est blessé (%d PV)" % _a.hp)
+		_a.take_damage(999.0)
+		check(_a.is_alive() and _a.hp == _a.hp_floor, "l'ami ne peut pas mourir pendant le prologue (%d PV)" % _a.hp)
+		# Arrivée au refuge
+		_s.global_position = _p.REFUGE_POS + Vector2(60, 40)
+		_a.global_position = _p.REFUGE_POS + Vector2(90, 50)
+	if _f == 960 + 705:
+		check(_p.step == _p.Step.REFUGE, "arrivée au refuge")
+		check(not _a.following and _p.refuge.lit, "l'ami reste au refuge, le feu est rallumé")
+		_hp_mark = _a.hp
+	if _f == 960 + 1300:
+		check(_p.step == _p.Step.FIND_WATER, "objectif : trouver de l'eau")
+		check(_a.in_camp() and _a.hp > _hp_mark, "l'ami se soigne au refuge (%d → %d PV)" % [_hp_mark, _a.hp])
+		_s.global_position = _p.POND_POS + Vector2(140, 60)
+	if _f == 960 + 1305:
+		check(_p.step == _p.Step.ASSIGN, "la mare est trouvée : assigner")
+		check(_p.assign_to_pond(), "assignation à la récolte")
+		check(_s.task_node == _p.pond and not _s.selected, "le survivant part récolter tout seul")
+		check(_p.controlled == _a and _a.selected, "premier changement : on contrôle l'ami")
+		check(_p.step == _p.Step.FIRST_WATER, "attendre la première eau")
+	if _f > 960 + 1305 and _f < 960 + 3000 and _done_frame < 0 and _p.step == _p.Step.DONE:
+		_done_frame = _f
+		check(_p.stock.get_amount("eau") > 0, "de l'eau rapportée au refuge (%d)" % _p.stock.get_amount("eau"))
+	if _f == 960 + 3000:
+		check(_done_frame > 0, "la première eau termine le prologue")
 		check(_p._overlay.visible and _p._overlay_title.text == "Fin du prologue", "écran de fin du prologue")
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)

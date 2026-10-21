@@ -46,6 +46,9 @@ static var harmless := false
 @export var special := false
 @export var special_name := ""
 @export var aggro_range: float = 420.0
+## Cible imposée (mode histoire : une embuscade vise quelqu'un en particulier).
+## Tant qu'elle est valide, le monstre la poursuit, sans limite de portée.
+var preferred_target: Node2D = null
 
 var max_hp: float = 30.0
 var hp: float = 30.0
@@ -446,6 +449,8 @@ func _process_posted(delta: float) -> void:
 
 
 func _nearest_survivor() -> Node2D:
+	if is_instance_valid(preferred_target) and preferred_target.is_alive():
+		return preferred_target
 	var best: Node2D = null
 	var best_d := aggro_range
 	var ranged := is_ranged()

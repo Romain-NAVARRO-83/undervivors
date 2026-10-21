@@ -237,6 +237,19 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
   5. trouver le bout de la butte et passer de l'autre côté → fin du prologue.
 - Pas de faim ni de soif dans le prologue. Mort définitive : écran « Recommencer / Menu titre ».
 - **Échap** : pause (reprendre, recommencer, menu titre).
+
+## Ajouts v0.26 : nouveau déroulé du prologue
+
+Le prologue suit désormais cette histoire (demande de Romain) :
+
+1. Réveil sur la plage, **sans arme**, au milieu des débris. **Aucun monstre sur la plage.**
+2. On longe la butte vers l'est. Au bout, on rencontre un **second survivant** qui se joint à nous et nous **suit** (escouade de deux, pas encore de changement de personnage).
+3. Plus loin, au nord-ouest, des **monstres à éviter** (on n'a pas d'arme) ; une **embuscade blesse notre ami** (il ne peut pas mourir pendant le prologue).
+4. Plus loin, un **refuge** avec un feu de camp : l'ami blessé y reste et s'y soigne ; on part **seul chercher de l'eau** (à l'ouest).
+5. Mare trouvée : **clic droit sur la mare** pour assigner son survivant à la récolte ; **premier changement de survivant** : on dirige l'ami, au refuge.
+6. La première eau rapportée au refuge termine le prologue.
+
+Une flèche autour du personnage montre la direction de l'objectif quand il y en a une.
 ## Structure
 
 ```

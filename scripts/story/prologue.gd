@@ -1,14 +1,22 @@
 extends Node2D
 ## Mode histoire — Prologue « La plage ».
-## Un seul survivant se réveille sur la plage, au milieu des débris d'un
-## accident dont il ne se souvient pas. Une butte rocheuse infranchissable
-## longe la plage : on la suit vers l'est, en apprenant les bases (se
-## déplacer, viser et tirer, casser un coffre, ramasser une arme, combattre),
-## jusqu'à son extrémité où l'on peut enfin passer de l'autre côté.
+##
+## 1. Un survivant, sans arme, se réveille sur la plage parmi les débris d'un
+##    accident dont il ne se souvient pas. Pas de monstre sur la plage.
+## 2. Une butte rocheuse infranchissable longe la plage : on la suit vers
+##    l'est. Au bout, on rencontre un second survivant qui nous suit (escouade,
+##    pas encore de changement de personnage).
+## 3. Plus loin, des monstres à éviter (on n'a pas d'arme) : une embuscade
+##    blesse notre ami.
+## 4. Plus loin, un refuge avec un feu de camp : l'ami blessé y reste, on part
+##    seul chercher de l'eau.
+## 5. L'eau trouvée, on assigne son survivant à la récolte (clic droit sur la
+##    mare) : premier changement de survivant, on contrôle l'ami au refuge.
+## 6. La première eau rapportée au refuge termine le prologue.
 
 const MENU_SCENE := "res://scenes/menu.tscn"
 
-enum Step { WAKE, MOVE, FOLLOW, CHEST, PICKUP, FIRST_MOB, DUO, ROUND_BUTTE, DONE }
+enum Step { WAKE, MOVE, FOLLOW_BUTTE, MEET, TO_REFUGE, REFUGE, FIND_WATER, ASSIGN, FIRST_WATER, DONE }
 
 const LINES_WAKE := [
 	[1.2, "… Aïe. Ma tête."],
@@ -16,19 +24,36 @@ const LINES_WAKE := [
 	[6.0, "Et… qui suis-je, au juste ?"],
 ]
 
+## Lieux (au nord de la butte, après son extrémité).
+const FRIEND_POS := Vector2(2420, -250)
+const REFUGE_POS := Vector2(1350, -860)
+const POND_POS := Vector2(480, -640)
+## Monstres à éviter entre l'ami et le refuge.
+const DANGER_MOBS := [Vector2(2100, -470), Vector2(1830, -580), Vector2(1960, -790), Vector2(1610, -500)]
+const DANGER_LINE_Y := -360.0   # en passant cette ligne vers le nord : embuscade
+
 var step: Step = Step.WAKE
 var world: Node2D
-var survivor: Survivor
+var survivor: Survivor        # le premier survivant (le joueur au départ)
+var friend: Survivor          # le second, rencontré au bout de la butte
+var controlled: Survivor      # celui que le joueur dirige
 var camera: Camera2D
-var chest: LootChest
-var first_mob: Mob
-var duo: Array[Mob] = []
+var refuge: Refuge
+var pond: ResourceNode
+var stock: VillageStock
+var danger: Array[Mob] = []
+var ambusher: Mob
 
 var _t := 0.0
+var _step_t := 0.0
 var _wake_line := 0
 var _start_pos := Vector2.ZERO
 var _seen_wreck := false
+var _ambushed := false
+var _ambush_bitten := false
 var _rng := RandomNumberGenerator.new()
+var _follow_dir := Vector2.LEFT
+var _arrow: ObjectiveArrow
 
 # Interface
 var _objective: Label
@@ -60,22 +85,19 @@ func _ready() -> void:
 	world.name = "World"
 	world.y_sort_enabled = true
 	add_child(world)
+	stock = VillageStock.new()
+	stock.name = "Stock"
+	add_child(stock)
 
 	_build_butte()
 	_build_bounds()
 	_place_decor()
-	_place_encounters()
+	_place_places()
 
-	survivor = Survivor.new()
-	survivor.world = world
-	survivor.needs_enabled = false   # prologue : pas encore de faim ni de soif
-	survivor.camp_regen = false      # pas de camp
-	survivor.village_center = Vector2(-99999, -99999)
-	survivor.position = BeachMap.START
+	survivor = _make_survivor(BeachMap.START)
 	survivor.died.connect(_on_survivor_died)
-	world.add_child(survivor)
-	survivor.selected = true
 	_start_pos = survivor.global_position
+	_set_controlled(survivor)
 
 	camera = Camera2D.new()
 	camera.zoom = Vector2(1.6, 1.6)
@@ -89,11 +111,38 @@ func _ready() -> void:
 	add_child(camera)
 	camera.make_current()
 
+	_arrow = ObjectiveArrow.new()
+	_arrow.follow = controlled
+	world.add_child(_arrow)
+
 	_build_hud()
 	_set_objective("…")
 	var tw := create_tween()
 	tw.tween_interval(0.5)
 	tw.tween_property(_fade, "color:a", 0.0, 2.5)
+
+
+func _make_survivor(pos: Vector2) -> Survivor:
+	var s := Survivor.new()
+	s.world = world
+	s.stock = stock
+	s.unarmed_start = true         # sans arme au début
+	s.needs_enabled = false        # prologue : pas encore de faim ni de soif
+	s.camp_regen = false           # pas encore de camp
+	s.village_center = Vector2(-99999, -99999)
+	s.position = pos
+	world.add_child(s)
+	return s
+
+
+func _set_controlled(s: Survivor) -> void:
+	if is_instance_valid(controlled):
+		controlled.selected = false
+	controlled = s
+	s.selected = true
+	s.following = false
+	if _arrow:
+		_arrow.follow = s
 
 
 # --- Décor et monde ---------------------------------------------------------
@@ -216,44 +265,52 @@ func _place_decor() -> void:
 		world.add_child(palm)
 
 
-func _place_encounters() -> void:
-	# Coffre au pied de la butte, parmi des débris
-	chest = LootChest.new()
-	chest.world = world
-	chest.contents.append(load("res://data/weapons/pistol.tres"))
-	chest.position = Vector2(-230, BeachMap.butte_y(-230) + 60.0)
-	world.add_child(chest)
-	# Premier monstre, seul
-	first_mob = _spawn_mob(Vector2(700, 80))
-	# Puis deux autres
-	duo.append(_spawn_mob(Vector2(1620, 30)))
-	duo.append(_spawn_mob(Vector2(1690, 85)))
-
-
-func _spawn_mob(pos: Vector2) -> Mob:
-	var m := Mob.new()
-	m.mob_type = MobType.by_id("rongeur")
-	m.level = 1
-	m.posted = true
-	m.home = pos
-	m.position = pos
-	m.wander_radius = 50.0
-	m.leash_range = 420.0
-	m.aggro_range = 260.0
-	m.world = world
-	world.add_child(m)
-	return m
+func _place_places() -> void:
+	# Second survivant, assis au bout de la butte près d'un débris
+	friend = _make_survivor(FRIEND_POS)
+	friend.hp_floor = 12           # l'ami ne peut pas mourir pendant le prologue
+	friend.village_center = FRIEND_POS   # il attend là, assis près du débris
+	friend.wander_radius = 30.0
+	friend._pick_wander_target()
+	var seat := Wreck.new()
+	seat.kind = Wreck.Kind.SEAT
+	seat.position = FRIEND_POS + Vector2(-34, 16)
+	world.add_child(seat)
+	# Monstres à éviter, entre l'ami et le refuge
+	for p in DANGER_MOBS:
+		var m := Mob.new()
+		m.mob_type = MobType.by_id("rongeur")
+		m.level = 1
+		m.posted = true
+		m.home = p
+		m.position = p
+		m.wander_radius = 70.0
+		m.leash_range = 240.0
+		m.aggro_range = 170.0
+		m.world = world
+		world.add_child(m)
+		danger.append(m)
+	# Refuge (futur camp) et mare plus à l'ouest
+	refuge = Refuge.new()
+	refuge.position = REFUGE_POS
+	world.add_child(refuge)
+	pond = ResourceNode.new()
+	pond.name = "Mare"
+	pond.position = POND_POS
+	world.add_child(pond)
 
 
 # --- Déroulé ----------------------------------------------------------------
 
 func _process(delta: float) -> void:
-	if not is_instance_valid(survivor) or step == Step.DONE:
+	if step == Step.DONE or not is_instance_valid(controlled):
 		return
 	_t += delta
-	camera.position = survivor.global_position
-	var p := survivor.global_position
-	_status.text = "PV %d/%d   ·   %s" % [survivor.hp, survivor.max_hp, survivor.weapon.weapon_name]
+	_step_t += delta
+	camera.position = controlled.global_position
+	var p := survivor.global_position if is_instance_valid(survivor) else controlled.global_position
+	_update_status()
+	_update_follow()
 	# Monologue du réveil
 	if _wake_line < LINES_WAKE.size() and _t >= LINES_WAKE[_wake_line][0]:
 		survivor._say(LINES_WAKE[_wake_line][1], 2.3)
@@ -267,67 +324,141 @@ func _process(delta: float) -> void:
 				_advance(Step.MOVE)
 		Step.MOVE:
 			if p.distance_to(_start_pos) > 60.0:
-				_advance(Step.FOLLOW)
-		Step.FOLLOW:
-			if p.x > -520.0:
-				_advance(Step.CHEST)
-		Step.CHEST:
-			if chest.is_broken:
-				_advance(Step.PICKUP)
-			elif p.x > 380.0:
-				_advance(Step.FIRST_MOB)   # coffre ignoré : on continue quand même
-		Step.PICKUP:
-			if survivor.weapon.weapon_name != "Lance-pierre" or not survivor.inventory.is_empty():
-				survivor._say("Un pistolet rouillé. Mieux que rien.", 2.5)
-				_set_objective("Continuer vers l'est, le long de la butte")
-				step = Step.FIRST_MOB
-			elif p.x > 380.0:
-				_advance(Step.FIRST_MOB)
-		Step.FIRST_MOB:
-			if not is_instance_valid(first_mob) or not first_mob.is_alive():
-				survivor._say("C'était quoi, ce truc ?!", 2.5)
-				_advance(Step.DUO)
-			elif first_mob.chasing or p.x > 420.0:
-				_set_objective("Un monstre ! Visez-le et tirez (clic gauche maintenu). Reculez s'il approche.")
-		Step.DUO:
-			var alive := duo.filter(func(m): return is_instance_valid(m) and m.is_alive())
-			if alive.is_empty():
-				survivor._say("Il y en a d'autres… Charmant séjour.", 2.5)
-				_advance(Step.ROUND_BUTTE)
-			elif p.x > 1250.0:
-				_set_objective("Encore deux ! Gardez vos distances en tirant.")
-		Step.ROUND_BUTTE:
-			if BeachMap.past_butte(p):
+				_advance(Step.FOLLOW_BUTTE)
+		Step.FOLLOW_BUTTE:
+			if p.distance_to(friend.global_position) < 170.0:
+				_advance(Step.MEET)
+		Step.MEET:
+			# Petite discussion, puis l'ami se joint à nous.
+			if _step_t > 7.5:
+				_advance(Step.TO_REFUGE)
+		Step.TO_REFUGE:
+			if not _ambushed and p.y < DANGER_LINE_Y:
+				_ambush()
+			_update_ambush()
+			if p.distance_to(REFUGE_POS) < 140.0:
+				_advance(Step.REFUGE)
+		Step.REFUGE:
+			if _step_t > 4.0:
+				_advance(Step.FIND_WATER)
+		Step.FIND_WATER:
+			if p.distance_to(POND_POS) < 230.0:
+				_advance(Step.ASSIGN)
+		Step.FIRST_WATER:
+			if stock.get_amount("eau") > 0:
 				_finish()
 
 
 func _advance(next: Step) -> void:
 	step = next
+	_step_t = 0.0
+	_arrow.target = Vector2.INF
 	match next:
 		Step.MOVE:
 			_set_objective("Se déplacer : ZQSD (ou flèches)")
-		Step.FOLLOW:
+		Step.FOLLOW_BUTTE:
 			_set_objective("Impossible de franchir la butte. La longer vers l'est.")
-		Step.CHEST:
-			_set_objective("Un coffre ! Visez-le à la souris, clic gauche pour tirer dessus.")
-		Step.PICKUP:
-			_set_objective("Ramasser ce qui est tombé (passer dessus)")
-		Step.FIRST_MOB:
-			_set_objective("Continuer vers l'est, le long de la butte")
-		Step.DUO:
-			_set_objective("Continuer vers l'est")
-		Step.ROUND_BUTTE:
-			_set_objective("Trouver le bout de la butte et passer de l'autre côté")
+			_arrow.target = FRIEND_POS
+		Step.MEET:
+			_set_objective("Quelqu'un ! Un autre survivant.")
+			friend._say("Hé ! Toi aussi, tu étais… dans ce truc ?", 2.6)
+			get_tree().create_timer(2.6).timeout.connect(func(): survivor._say("Aucune idée. Je ne me souviens de rien.", 2.4))
+			get_tree().create_timer(5.0).timeout.connect(func(): friend._say("Moi non plus. On reste ensemble ?", 2.4))
+		Step.TO_REFUGE:
+			friend.following = true
+			_set_objective("%s vous suit. Trouver un abri au nord-ouest. Sans arme : évitez les monstres !" % friend.first_name)
+			_arrow.target = REFUGE_POS
+		Step.REFUGE:
+			refuge.lit = true
+			friend.following = false
+			for s in [survivor, friend]:
+				s.village_center = REFUGE_POS
+				s.camp_regen = true
+			friend.wander_radius = 50.0
+			friend._pick_wander_target()
+			_set_objective("Un refuge, avec un vieux feu de camp.")
+			friend._say("Je ne vais pas plus loin… Ma jambe. Trouve de l'eau, il nous en faut.", 3.8)
+		Step.FIND_WATER:
+			_set_objective("Trouver de l'eau, seul. Cherchez à l'ouest du refuge. %s reste se reposer au feu." % friend.first_name)
+		Step.ASSIGN:
+			_set_objective("De l'eau ! Clic droit sur la mare : %s fera les allers-retours jusqu'au refuge." % survivor.first_name)
+			survivor._say("Une mare ! Il faut en rapporter au refuge.", 2.5)
+		Step.FIRST_WATER:
+			_set_objective("Vous dirigez maintenant %s, au refuge. %s rapporte l'eau tout seul." % [friend.first_name, survivor.first_name])
+
+
+## Embuscade : un monstre surgit et mord l'ami.
+func _ambush() -> void:
+	_ambushed = true
+	ambusher = Mob.new()
+	ambusher.mob_type = MobType.by_id("rongeur")
+	ambusher.level = 1
+	ambusher.world = world
+	var side := Vector2(1, 0) if friend.global_position.x < 2300 else Vector2(-1, 0)
+	ambusher.position = friend.global_position + side * 16.0
+	ambusher.village_center = ambusher.position
+	ambusher.preferred_target = friend
+	world.add_child(ambusher)
+	ambusher.damage = 30.0   # une vraie morsure
+	survivor._say("Attention !", 1.5)
+
+
+func _update_ambush() -> void:
+	if not _ambushed or _ambush_bitten or not is_instance_valid(ambusher):
+		return
+	if friend.hp < friend.max_hp:
+		_ambush_bitten = true
+		friend._say("Aaah ! Ma jambe !", 2.5)
+		# Le monstre retourne à son coin : on peut l'éviter.
+		ambusher.preferred_target = null
+		ambusher.posted = true
+		ambusher.home = ambusher.global_position
+		ambusher.leash_range = 200.0
+		ambusher.aggro_range = 150.0
+		ambusher.damage = 8.0
+		danger.append(ambusher)
+		_set_objective("%s est blessé ! Filez au refuge, au nord-ouest." % friend.first_name)
+
+
+## L'ami suit le joueur, un pas derrière lui (escouade de deux).
+func _update_follow() -> void:
+	if not friend.following:
+		return
+	var v := survivor.velocity
+	if v.length() > 5.0:
+		_follow_dir = v.normalized()
+	friend.follow_point = survivor.global_position - _follow_dir * 34.0
+	friend.follow_speed = survivor.move_speed()
+
+
+## Clic droit sur la mare : le survivant contrôlé est assigné à la récolte,
+## on prend la main sur l'autre (premier changement de survivant).
+func assign_to_pond() -> bool:
+	if step != Step.ASSIGN and step != Step.FIND_WATER:
+		return false
+	if controlled != survivor:
+		return false
+	survivor.assign(pond)
+	_set_controlled(friend)
+	survivor._say("J'y vais. Repose-toi.", 2.0)
+	_advance(Step.FIRST_WATER)
+	return true
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if pond.contains(get_global_mouse_position()) and assign_to_pond():
+			get_viewport().set_input_as_handled()
 
 
 func _finish() -> void:
 	step = Step.DONE
 	_set_objective("Prologue terminé")
-	survivor._say("Enfin de l'autre côté. Et maintenant ?", 3.0)
+	friend._say("De l'eau… Merci. On va peut-être s'en sortir.", 3.0)
 	var tw := create_tween()
-	tw.tween_interval(2.0)
+	tw.tween_interval(3.0)
 	tw.tween_property(_fade, "color:a", 0.85, 1.5)
-	tw.tween_callback(func(): _show_overlay("Fin du prologue", "Au-delà de la butte, l'île continue.\nÀ suivre…", true))
+	tw.tween_callback(func(): _show_overlay("Fin du prologue", "Un refuge, de l'eau, deux survivants.\nÀ suivre…", true))
 
 
 func _on_survivor_died(_s: Survivor) -> void:
@@ -335,6 +466,16 @@ func _on_survivor_died(_s: Survivor) -> void:
 	var tw := create_tween()
 	tw.tween_property(_fade, "color:a", 0.85, 1.2)
 	tw.tween_callback(func(): _show_overlay("Mort définitive", "Sur cette île, on ne revient pas.", true))
+
+
+func _update_status() -> void:
+	var lines: PackedStringArray = []
+	for s in [survivor, friend]:
+		if not is_instance_valid(s) or (s == friend and step < Step.MEET):
+			continue
+		var arme: String = s.weapon.weapon_name if s.weapon else "sans arme"
+		lines.append("%s%s : PV %d/%d · %s" % ["▶ " if s == controlled else "", s.first_name, s.hp, s.max_hp, arme])
+	_status.text = "\n".join(lines)
 
 
 # --- Interface --------------------------------------------------------------
@@ -352,7 +493,7 @@ func _build_hud() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
 	panel.add_child(v)
-	v.add_child(UIStyle.label("PROLOGUE · LA PLAGE", 12, UIStyle.ACCENT))
+	v.add_child(UIStyle.label("PROLOGUE", 12, UIStyle.ACCENT))
 	_objective = UIStyle.label("", 16)
 	_objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_objective.custom_minimum_size = Vector2(356, 0)
