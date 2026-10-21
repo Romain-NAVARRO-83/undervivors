@@ -107,6 +107,10 @@ var _hurt_flash := 0.0
 var _hurt_bubble_cd := 0.0
 var _healing := false
 
+## Mode histoire : faim/soif et soin au camp peuvent être coupés (prologue).
+var needs_enabled := true
+var camp_regen := true
+
 var thirst: float = NEED_MAX
 var hunger: float = NEED_MAX
 var bubble: SpeechBubble
@@ -357,6 +361,8 @@ func _process_controlled() -> void:
 # --- Besoins : faim et soif -------------------------------------------------
 
 func _update_needs(delta: float) -> void:
+	if not needs_enabled:
+		return
 	thirst = maxf(thirst - THIRST_DECAY * delta, 0.0)
 	hunger = maxf(hunger - HUNGER_DECAY * delta, 0.0)
 	# En passant au centre du village : on dépose, puis on boit et mange au stock.
@@ -740,7 +746,7 @@ func _update_health(delta: float) -> void:
 	if hp >= max_hp or _since_hit < REGEN_DELAY or thirst <= 0.0 or hunger <= 0.0:
 		_regen_acc = 0.0
 		return
-	if not in_camp():
+	if not camp_regen or not in_camp():
 		return
 	_regen_acc += REGEN_PER_SEC * delta
 	if _regen_acc >= 1.0:

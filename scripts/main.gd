@@ -69,6 +69,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	Nav.clear()  # nouvelle partie : aucune construction
+	Terrain.enabled = true
 	var ground := IsoGround.new()
 	ground.z_index = -10
 	add_child(ground)
@@ -175,36 +176,7 @@ func _spawn_survivor(pos: Vector2, hero := false) -> Survivor:
 
 
 func _register_inputs() -> void:
-	# Touches physiques : WASD en QWERTY = ZQSD en AZERTY.
-	var map := {
-		"move_up": [KEY_W, KEY_UP],
-		"move_down": [KEY_S, KEY_DOWN],
-		"move_left": [KEY_A, KEY_LEFT],
-		"move_right": [KEY_D, KEY_RIGHT],
-		"next_survivor": [KEY_TAB],
-		"deselect": [KEY_ESCAPE],
-		"toggle_panel": [KEY_G],
-		"toggle_loot": [KEY_I],
-		"toggle_squad": [KEY_F],
-		"cycle_formation": [KEY_V],
-		"debug_needs": [KEY_F10],
-		"toggle_debug": [KEY_F1],
-		"toggle_build": [KEY_B],
-		"toggle_alert": [KEY_H],
-	}
-	for action in map:
-		if InputMap.has_action(action):
-			continue
-		InputMap.add_action(action)
-		for key in map[action]:
-			var ev := InputEventKey.new()
-			ev.physical_keycode = key
-			InputMap.action_add_event(action, ev)
-	if not InputMap.has_action("shoot"):
-		InputMap.add_action("shoot")
-		var mb := InputEventMouseButton.new()
-		mb.button_index = MOUSE_BUTTON_LEFT
-		InputMap.action_add_event("shoot", mb)
+	InputSetup.register()
 
 
 func _unhandled_input(event: InputEvent) -> void:

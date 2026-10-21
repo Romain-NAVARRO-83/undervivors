@@ -9,6 +9,7 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 1. Installer [Godot 4.5](https://godotengine.org/download) (version standard, pas .NET).
 2. Ouvrir Godot → **Importer** → choisir le fichier `project.godot` de ce dossier.
 3. Appuyer sur **F5** (ou le bouton ▶ en haut à droite).
+4. Menu titre : **Histoire** (le prologue) ou **Mode test** (la carte de prototypage avec toutes les mécaniques et le panneau debug F1).
 
 ## Commandes
 
@@ -223,6 +224,19 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Le servant **monte sur la plateforme** de sa tourelle et y reste ; il redescend devant elle quand il la quitte (boire, manger, reprise en main, tourelle détruite).
 - Perché, il est **hors d'atteinte des monstres au corps à corps** ; les cracheurs peuvent encore le viser.
 - Bouton **« Libérer <prénom> »** au-dessus de chaque tourelle servie : dissocie le servant, qui redescend et retourne errer au camp.
+
+## Ajouts v0.25 : menu titre et début du mode histoire
+
+- **Menu titre** : Histoire, Mode test, Quitter. Le mode test est la carte de prototypage habituelle, inchangée.
+- **Prologue « La plage »** (mode histoire) : un seul survivant se réveille au milieu des débris fumants d'un accident dont il ne se souvient pas. La plage est coincée entre la mer et une **butte rocheuse infranchissable** qu'on longe vers l'est ; au bout, on la contourne pour passer de l'autre côté.
+- Le prologue apprend les bases, un objectif à la fois (panneau en haut à gauche) :
+  1. se déplacer ;
+  2. longer la butte (on ne peut ni la franchir ni nager) ;
+  3. viser et tirer sur un coffre, ramasser ce qui tombe (un pistolet rouillé) ;
+  4. abattre un premier monstre, puis deux autres ;
+  5. trouver le bout de la butte et passer de l'autre côté → fin du prologue.
+- Pas de faim ni de soif dans le prologue. Mort définitive : écran « Recommencer / Menu titre ».
+- **Échap** : pause (reprendre, recommencer, menu titre).
 ## Structure
 
 ```
@@ -259,7 +273,11 @@ scripts/ui/loot_panel.gd  panneau du stock d'objets
 scripts/ui/debug_panel.gd panneau debug (F1)
 scripts/ui/               interface : panneau de gestion, tuiles, vignettes, styles
 data/weapons/*.tres       armes, modifiables dans l'inspecteur de Godot
-tests/run_tests.gd        tests automatisés
+tests/run_tests.gd        tests automatisés (mode test)
+tests/run_story_tests.gd  tests automatisés du prologue
+scripts/menu.gd           menu titre
+scripts/input_setup.gd    touches du jeu (partagées)
+scripts/story/            mode histoire : prologue (déroulé), carte de la plage, sol, débris, palmiers
 ```
 
 ## Graphismes
@@ -271,4 +289,5 @@ Tout est dessiné en code avec des formes simples. Format prévu pour les tuiles
 ```
 godot --headless --path . --import
 godot --headless --fixed-fps 60 --path . -s tests/run_tests.gd
+godot --headless --fixed-fps 60 --path . -s tests/run_story_tests.gd
 ```
