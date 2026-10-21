@@ -63,6 +63,10 @@ var post: Turret = null
 var manning := false
 ## Alerte générale : les survivants libres rentrent défendre le camp (GDD 10).
 static var alert := false
+## Cible commune de l'escouade : quand le leader tire sur un coffre, les
+## suiveurs tirent dessus aussi jusqu'à ce qu'il casse (sauf monstre au contact).
+static var squad_focus: Node2D = null
+const FOCUS_DEFEND_RANGE := 120.0
 var _alert_offset := Vector2.ZERO
 ## Escouade (GDD 6) : membre de l'escouade enregistrée, et suivi du leader.
 ## `following` est vrai pour les suiveurs quand le mode escouade est actif ;
@@ -590,12 +594,27 @@ func _process_wander(delta: float) -> void:
 ## Tir autonome sur l'ennemi le plus proche à portée (GDD 5.4).
 func _autonomous_shooting() -> void:
 	var target := _nearest_enemy()
+	if following and _focus_valid():
+		var near_enemy := target != null and global_position.distance_to(target.global_position) < FOCUS_DEFEND_RANGE
+		if not near_enemy and global_position.distance_to(squad_focus.global_position) <= weapon.max_range:
+			target = squad_focus
 	if target:
 		var dir: Vector2 = (target.global_position - global_position).normalized()
 		aim_dir = dir
 		try_shoot(dir)
 	elif velocity.length() > 1.0:
 		aim_dir = velocity.normalized()
+
+
+## Vrai si la cible commune de l'escouade existe encore (coffre pas cassé).
+static func _focus_valid() -> bool:
+	if squad_focus == null or not is_instance_valid(squad_focus):
+		squad_focus = null
+		return false
+	if squad_focus.get("is_broken") == true:
+		squad_focus = null
+		return false
+	return true
 
 
 func _pick_wander_target() -> void:

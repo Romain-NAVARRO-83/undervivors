@@ -375,6 +375,7 @@ func set_squad_mode(on: bool) -> void:
 			return
 		var leader: Survivor = selected if squad.has(selected) else squad[0]
 		squad_mode = true
+		Survivor.squad_focus = null
 		if is_instance_valid(selected) and selected != leader:
 			selected.selected = false
 		selected = null
@@ -384,6 +385,7 @@ func set_squad_mode(on: bool) -> void:
 		_notify("Mode escouade : %s mène le groupe" % leader.first_name)
 	else:
 		squad_mode = false
+		Survivor.squad_focus = null
 		for m in squad:
 			m.following = false  # chacun reprend sa tâche ou son errance
 		_notify("Fin du mode escouade")

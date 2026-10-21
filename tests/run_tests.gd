@@ -398,6 +398,7 @@ func _process(_delta: float) -> bool:
 	if _frames == 5526 + 200:
 		_test_elements_end()
 		_test_spitter_end()
+		_test_squad_focus()
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false
@@ -686,3 +687,42 @@ func _test_spitter_end() -> void:
 	check(_target.hp < _target.max_hp, "le cracheur touche le survivant à distance (%d PV)" % _target.hp)
 	var d := _spitter.global_position.distance_to(_target.global_position)
 	check(d > 60.0, "le cracheur garde ses distances (%.0f px)" % d)
+
+
+# --- Escouade : tir groupé sur un coffre ------------------------------------
+
+func _test_squad_focus() -> void:
+	for m in _main.get_tree().get_nodes_in_group("mobs"):
+		if is_instance_valid(m) and m.is_alive():
+			m.take_damage(99999.0)
+	_main.set_squad_mode(false)
+	_main._select(null)
+	for m in _main.squad.duplicate():
+		_main.toggle_squad_member(m)
+	var members: Array = _main.survivors.slice(0, 3)
+	for m in members:
+		_main.toggle_squad_member(m)
+	_main.set_squad_mode(true)
+	var leader: Survivor = _main.selected
+	var follower: Survivor = members[1] if members[0] == leader else members[0]
+	follower.global_position = leader.global_position + Vector2(-20, 10)
+	var chest := LootChest.new()
+	chest.max_hp = 9999.0
+	chest.world = _main.world
+	chest.position = leader.global_position + Vector2(120, 0)
+	_main.world.add_child(chest)
+	var p := Projectile.new()
+	p.shooter = leader
+	p.damage = 1.0
+	p._on_body_entered(chest)
+	check(Survivor.squad_focus == chest, "le leader tire sur un coffre : il devient la cible de l'escouade")
+	follower._cooldown = 0.0
+	follower._autonomous_shooting()
+	var to_chest := (chest.global_position - follower.global_position).normalized()
+	check(follower.aim_dir.dot(to_chest) > 0.99, "les suiveurs visent le coffre")
+	chest.is_broken = true
+	check(not Survivor._focus_valid() and Survivor.squad_focus == null, "coffre cassé : fin du tir groupé")
+	Survivor.squad_focus = chest
+	_main.set_squad_mode(false)
+	check(Survivor.squad_focus == null, "fin du mode escouade : plus de cible commune")
+	p.free()

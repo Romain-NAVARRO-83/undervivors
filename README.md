@@ -205,6 +205,11 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Quantité rapportée par trajet : **2 + 2 × niveau** (4 au niveau 1, 8 au niveau 3), au lieu de 1 + niveau.
 - Les récolteurs vont **plus vite** sur leurs trajets : 1,2 × leur vitesse normale (au lieu de 0,75 ×).
 - Réglages dans `scripts/survivor.gd` : `CARRY_BASE`, `CARRY_PER_LEVEL`, `WORK_SPEED_MULT`.
+
+## Ajouts v0.22 : tir groupé sur les coffres, texte net
+
+- En mode escouade, quand le **leader tire sur un coffre**, tous les suiveurs à portée tirent dessus aussi jusqu'à ce qu'il casse. Exception : un suiveur qui a un monstre à moins de 120 px se défend d'abord.
+- **Texte plus net** : police en MSDF (reste nette à tous les zooms et toutes les résolutions) et filtrage linéaire par défaut au lieu de « nearest ». Concerne l'interface comme les textes dans le monde (noms d'objets, niveaux, dégâts, bulles).
 ## Structure
 
 ```
