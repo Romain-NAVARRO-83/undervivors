@@ -8,15 +8,17 @@ extends Node2D
 ##    pas encore de changement de personnage).
 ## 3. Plus loin, des monstres à éviter (on n'a pas d'arme) : une embuscade
 ##    blesse notre ami.
-## 4. Plus loin, un refuge avec un feu de camp : l'ami blessé y reste, on part
-##    seul chercher de l'eau.
-## 5. L'eau trouvée, on assigne son survivant à la récolte (clic droit sur la
-##    mare) : premier changement de survivant, on contrôle l'ami au refuge.
-## 6. La première eau rapportée au refuge termine le prologue.
+## 4. Plus loin, un refuge avec un feu de camp : l'ami blessé y reste (il a
+##    soif), on part seul chercher de l'eau.
+## 5. On trouve deux unités d'eau (bouteilles) en explorant : pas de source,
+##    on loote ce qu'on trouve. On les rapporte au feu : elles vont au stock,
+##    l'ami vient boire.
+## 6. Premier changement de survivant (Tab ou clic droit sur l'ami) : fin du
+##    prologue.
 
 const MENU_SCENE := "res://scenes/menu.tscn"
 
-enum Step { WAKE, MOVE, FOLLOW_BUTTE, MEET, TO_REFUGE, REFUGE, FIND_WATER, ASSIGN, FIRST_WATER, DONE }
+enum Step { WAKE, MOVE, FOLLOW_BUTTE, MEET, TO_REFUGE, REFUGE, FIND_WATER, BRING_WATER, FRIEND_DRINKS, SWITCH, DONE }
 
 const LINES_WAKE := [
 	[1.2, "… Aïe. Ma tête."],
@@ -27,7 +29,9 @@ const LINES_WAKE := [
 ## Lieux (au nord de la butte, après son extrémité).
 const FRIEND_POS := Vector2(2420, -250)
 const REFUGE_POS := Vector2(1350, -860)
-const POND_POS := Vector2(480, -640)
+## Deux bouteilles d'eau à trouver, à l'ouest du refuge (près de débris).
+const WATER_POS := [Vector2(640, -760), Vector2(330, -560)]
+const WATER_NEEDED := 2
 ## Monstres à éviter entre l'ami et le refuge.
 const DANGER_MOBS := [Vector2(2100, -470), Vector2(1830, -580), Vector2(1960, -790), Vector2(1610, -500)]
 const DANGER_LINE_Y := -360.0   # en passant cette ligne vers le nord : embuscade
@@ -39,7 +43,7 @@ var friend: Survivor          # le second, rencontré au bout de la butte
 var controlled: Survivor      # celui que le joueur dirige
 var camera: Camera2D
 var refuge: Refuge
-var pond: ResourceNode
+var water_items: Array[ItemPickup] = []
 var stock: VillageStock
 var danger: Array[Mob] = []
 var ambusher: Mob
@@ -294,10 +298,17 @@ func _place_places() -> void:
 	refuge = Refuge.new()
 	refuge.position = REFUGE_POS
 	world.add_child(refuge)
-	pond = ResourceNode.new()
-	pond.name = "Mare"
-	pond.position = POND_POS
-	world.add_child(pond)
+	var kinds := [Wreck.Kind.SUITCASE, Wreck.Kind.PANEL]
+	for i in WATER_POS.size():
+		var w := ItemPickup.new()
+		w.item = load("res://data/items/eau.tres")
+		w.position = WATER_POS[i]
+		world.add_child(w)
+		water_items.append(w)
+		var debris := Wreck.new()
+		debris.kind = kinds[i]
+		debris.position = WATER_POS[i] + Vector2(-30, -14)
+		world.add_child(debris)
 
 
 # --- Déroulé ----------------------------------------------------------------
@@ -342,11 +353,16 @@ func _process(delta: float) -> void:
 			if _step_t > 4.0:
 				_advance(Step.FIND_WATER)
 		Step.FIND_WATER:
-			if p.distance_to(POND_POS) < 230.0:
-				_advance(Step.ASSIGN)
-		Step.FIRST_WATER:
-			if stock.get_amount("eau") > 0:
-				_finish()
+			var n := water_found()
+			_set_objective("Trouver de l'eau, seul : à l'ouest du refuge. Eau trouvée : %d/%d" % [n, WATER_NEEDED])
+			if n >= WATER_NEEDED:
+				_advance(Step.BRING_WATER)
+		Step.BRING_WATER:
+			if stock.total_added.get("eau", 0) >= WATER_NEEDED:
+				_advance(Step.FRIEND_DRINKS)
+		Step.FRIEND_DRINKS:
+			if friend.thirst >= Survivor.NEED_LOW or _step_t > 8.0:
+				_advance(Step.SWITCH)
 
 
 func _advance(next: Step) -> void:
@@ -377,14 +393,19 @@ func _advance(next: Step) -> void:
 			friend.wander_radius = 50.0
 			friend._pick_wander_target()
 			_set_objective("Un refuge, avec un vieux feu de camp.")
+			friend.thirst = 25.0   # assoiffé : il le dira, et ira boire dès qu'il y aura de l'eau
+			friend._bubble_cooldown = 6.0
 			friend._say("Je ne vais pas plus loin… Ma jambe. Trouve de l'eau, il nous en faut.", 3.8)
 		Step.FIND_WATER:
-			_set_objective("Trouver de l'eau, seul. Cherchez à l'ouest du refuge. %s reste se reposer au feu." % friend.first_name)
-		Step.ASSIGN:
-			_set_objective("De l'eau ! Clic droit sur la mare : %s fera les allers-retours jusqu'au refuge." % survivor.first_name)
-			survivor._say("Une mare ! Il faut en rapporter au refuge.", 2.5)
-		Step.FIRST_WATER:
-			_set_objective("Vous dirigez maintenant %s, au refuge. %s rapporte l'eau tout seul." % [friend.first_name, survivor.first_name])
+			_set_objective("Trouver de l'eau, seul : à l'ouest du refuge. Eau trouvée : 0/%d" % WATER_NEEDED)
+		Step.BRING_WATER:
+			survivor._say("Deux bouteilles. C'est un début.", 2.5)
+			_set_objective("Rapporter l'eau au feu de camp du refuge (passer près du feu)")
+			_arrow.target = REFUGE_POS
+		Step.FRIEND_DRINKS:
+			_set_objective("L'eau est au stock du refuge. %s va boire." % friend.first_name)
+		Step.SWITCH:
+			_set_objective("Prendre le relais : Tab (ou clic droit sur %s) pour le diriger." % friend.first_name)
 
 
 ## Embuscade : un monstre surgit et mord l'ami.
@@ -431,34 +452,45 @@ func _update_follow() -> void:
 	friend.follow_speed = survivor.move_speed()
 
 
-## Clic droit sur la mare : le survivant contrôlé est assigné à la récolte,
-## on prend la main sur l'autre (premier changement de survivant).
-func assign_to_pond() -> bool:
-	if step != Step.ASSIGN and step != Step.FIND_WATER:
+## Unités d'eau trouvées : dans le sac du survivant ou déjà déposées au stock.
+func water_found() -> int:
+	var n := 0
+	for it in survivor.inventory:
+		if it is ConsumableData and it.resource_type == "eau":
+			n += 1
+	return n + stock.total_added.get("eau", 0)
+
+
+## Premier changement de survivant (Tab ou clic droit sur l'autre).
+func switch_survivor() -> bool:
+	if step != Step.SWITCH:
 		return false
-	if controlled != survivor:
-		return false
-	survivor.assign(pond)
-	_set_controlled(friend)
-	survivor._say("J'y vais. Repose-toi.", 2.0)
-	_advance(Step.FIRST_WATER)
+	_set_controlled(friend if controlled == survivor else survivor)
+	controlled._say("À moi. Ça va mieux, avec de l'eau.", 2.5)
+	_finish()
 	return true
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if pond.contains(get_global_mouse_position()) and assign_to_pond():
+	if step != Step.SWITCH:
+		return
+	if event.is_action_pressed("next_survivor"):
+		switch_survivor()
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		var other := friend if controlled == survivor else survivor
+		if other.global_position.distance_to(get_global_mouse_position()) < 26.0:
+			switch_survivor()
 			get_viewport().set_input_as_handled()
 
 
 func _finish() -> void:
 	step = Step.DONE
 	_set_objective("Prologue terminé")
-	friend._say("De l'eau… Merci. On va peut-être s'en sortir.", 3.0)
 	var tw := create_tween()
 	tw.tween_interval(3.0)
 	tw.tween_property(_fade, "color:a", 0.85, 1.5)
-	tw.tween_callback(func(): _show_overlay("Fin du prologue", "Un refuge, de l'eau, deux survivants.\nÀ suivre…", true))
+	tw.tween_callback(func(): _show_overlay("Fin du prologue", "Un refuge, un peu d'eau, deux survivants.\nÀ suivre…", true))
 
 
 func _on_survivor_died(_s: Survivor) -> void:

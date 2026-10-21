@@ -102,16 +102,27 @@ func _process(_d: float) -> bool:
 	if _f == 960 + 1300:
 		check(_p.step == _p.Step.FIND_WATER, "objectif : trouver de l'eau")
 		check(_a.in_camp() and _a.hp > _hp_mark, "l'ami se soigne au refuge (%d → %d PV)" % [_hp_mark, _a.hp])
-		_s.global_position = _p.POND_POS + Vector2(140, 60)
-	if _f == 960 + 1305:
-		check(_p.step == _p.Step.ASSIGN, "la mare est trouvée : assigner")
-		check(_p.assign_to_pond(), "assignation à la récolte")
-		check(_s.task_node == _p.pond and not _s.selected, "le survivant part récolter tout seul")
-		check(_p.controlled == _a and _a.selected, "premier changement : on contrôle l'ami")
-		check(_p.step == _p.Step.FIRST_WATER, "attendre la première eau")
-	if _f > 960 + 1305 and _f < 960 + 3000 and _done_frame < 0 and _p.step == _p.Step.DONE:
+		check(_a.thirst < Survivor.NEED_LOW, "l'ami a soif")
+		check(_p.get_tree().get_nodes_in_group("resource_nodes").is_empty(), "pas de source d'eau continue : des unités à trouver")
+		# On ramasse les deux bouteilles en passant dessus
+		_s.global_position = _p.WATER_POS[0]
+	if _f == 960 + 1350:
+		check(_p.water_found() == 1, "première bouteille ramassée (%d)" % _p.water_found())
+		_s.global_position = _p.WATER_POS[1]
+	if _f == 960 + 1400:
+		check(_p.water_found() == 2 and _p.step == _p.Step.BRING_WATER, "deux unités d'eau : les rapporter")
+		check(_s.inventory.size() == 2, "elles sont dans le sac")
+		_s.global_position = _p.REFUGE_POS + Vector2(10, 5)
+	if _f == 960 + 1410:
+		check(_p.stock.get_amount("eau") >= 1 or _p.stock.total_added.get("eau", 0) == 2, "déposées au stock du refuge")
+		check(_s.inventory.is_empty(), "sac vidé au feu de camp")
+	if _f == 960 + 1900:
+		check(_a.thirst >= Survivor.NEED_LOW, "l'ami est venu boire (soif %.0f)" % _a.thirst)
+		check(_p.step == _p.Step.SWITCH, "étape : premier changement de survivant")
+		_p.switch_survivor()
+		check(_p.controlled == _a and _a.selected and not _s.selected, "on dirige maintenant l'ami")
+	if _f > 960 + 1900 and _done_frame < 0 and _p.step == _p.Step.DONE:
 		_done_frame = _f
-		check(_p.stock.get_amount("eau") > 0, "de l'eau rapportée au refuge (%d)" % _p.stock.get_amount("eau"))
 	if _f == 960 + 3000:
 		check(_done_frame > 0, "la première eau termine le prologue")
 		check(_p._overlay.visible and _p._overlay_title.text == "Fin du prologue", "écran de fin du prologue")

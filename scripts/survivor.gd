@@ -120,6 +120,7 @@ var hunger: float = NEED_MAX
 var bubble: SpeechBubble
 var _bubble_cooldown := 0.0
 var _refill_cooldown := 0.0
+var _consume_cooldown := 0.0
 var _refilling := false
 
 var _gather_timer := 0.0
@@ -235,11 +236,21 @@ func unequip_to_stock() -> bool:
 func _deposit_inventory() -> void:
 	if inventory.is_empty() or stock == null:
 		return
-	var n := inventory.size()
+	var n := 0
+	var kept: Array[Resource] = []
 	for item in inventory:
-		stock.add_item(item)
-	inventory.clear()
-	_say("Butin rapporté : %d objet%s" % [n, "s" if n > 1 else ""], 2.5)
+		if item is ConsumableData:
+			# Eau, nourriture : dans le stock du village (s'il reste de la place).
+			if stock.add(item.resource_type, item.amount) > 0:
+				n += 1
+			else:
+				kept.append(item)
+		else:
+			stock.add_item(item)
+			n += 1
+	inventory = kept
+	if n > 0:
+		_say("Butin rapporté : %d objet%s" % [n, "s" if n > 1 else ""], 2.5)
 
 
 func _say(text: String, duration := 3.0) -> void:
@@ -365,13 +376,20 @@ func _process_controlled() -> void:
 # --- Besoins : faim et soif -------------------------------------------------
 
 func _update_needs(delta: float) -> void:
-	if not needs_enabled:
-		return
-	thirst = maxf(thirst - THIRST_DECAY * delta, 0.0)
-	hunger = maxf(hunger - HUNGER_DECAY * delta, 0.0)
-	# En passant au centre du village : on dépose, puis on boit et mange au stock.
+	# needs_enabled coupe seulement la baisse des jauges (prologue) ; boire,
+	# manger et déposer au feu restent possibles.
+	if needs_enabled:
+		thirst = maxf(thirst - THIRST_DECAY * delta, 0.0)
+		hunger = maxf(hunger - HUNGER_DECAY * delta, 0.0)
 	_refill_cooldown -= delta
 	_full_bag_cooldown -= delta
+	_consume_cooldown -= delta
+	# Il a soif (ou faim) et transporte de l'eau (ou à manger) : il se sert.
+	if _consume_cooldown <= 0.0:
+		_consume_cooldown = 1.0
+		_consume_from_bag("eau")
+		_consume_from_bag("nourriture")
+	# En passant au centre du village : on dépose, puis on boit et mange au stock.
 	if global_position.distance_to(village_center) < 40.0:
 		if carrying > 0:
 			_deposit()
@@ -381,6 +399,22 @@ func _update_needs(delta: float) -> void:
 			_refill("eau")
 			_refill("nourriture")
 	_update_complaints(delta)
+
+
+## Consomme une unité du sac (bouteille d'eau, ration) si la jauge est basse.
+func _consume_from_bag(resource_type: String) -> bool:
+	var prop: String = NEED_RESOURCE[resource_type]
+	var level: float = get(prop)
+	if level >= NEED_LOW:
+		return false
+	for i in inventory.size():
+		var it = inventory[i]
+		if it is ConsumableData and it.resource_type == resource_type:
+			inventory.remove_at(i)
+			set(prop, minf(level + it.amount * REFILL_PER_UNIT, NEED_MAX))
+			_say("Slurp !" if resource_type == "eau" else "Miam !", 1.4)
+			return true
+	return false
 
 
 ## Prend au stock ce qu'il faut pour remonter la jauge (s'il y en a).

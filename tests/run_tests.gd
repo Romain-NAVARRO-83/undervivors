@@ -55,6 +55,7 @@ func _init() -> void:
 	test_stock()
 	test_needs()
 	test_inventory()
+	test_consumables()
 	test_terrain()
 	# Test de scène : cycle de récolte complet à la mare (se termine dans _process).
 	_main = load("res://scenes/main.tscn").instantiate()
@@ -834,3 +835,34 @@ func _test_gunner_end() -> void:
 	check(_gunner2.global_position.distance_to(_tower.mount_point()) < 1.0 and _gunner2.z_index == 0, "il redescend devant la tourelle")
 	_tower._process(0.016)
 	check(not _tower._release_btn.visible, "plus de servant : le bouton disparaît")
+
+
+
+# --- Unités consommables (eau, nourriture) ---------------------------------
+
+func test_consumables() -> void:
+	var water: ConsumableData = load("res://data/items/eau.tres")
+	var food: ConsumableData = load("res://data/items/nourriture.tres")
+	check(water.resource_type == "eau" and food.resource_type == "nourriture", "unités d'eau et de nourriture")
+	check(LootTable.item_name(water) == "Bouteille d'eau", "nom de l'unité d'eau")
+	var s := Survivor.new()
+	s.inventory.append(water)
+	s.inventory.append(food)
+	s.thirst = 80.0
+	check(not s._consume_from_bag("eau"), "pas soif : il garde sa bouteille")
+	s.thirst = 20.0
+	check(s._consume_from_bag("eau") and is_equal_approx(s.thirst, 45.0), "il a soif et porte de l'eau : il la boit (soif %.0f)" % s.thirst)
+	check(s.inventory.size() == 1 and s.inventory[0] == food, "la bouteille a quitté le sac")
+	check(not s._consume_from_bag("eau"), "plus d'eau dans le sac")
+	s.hunger = 10.0
+	check(s._consume_from_bag("nourriture") and s.inventory.is_empty(), "il a faim : il mange sa ration")
+	# Au feu de camp : les unités vont dans le stock du village
+	var st := VillageStock.new()
+	s.stock = st
+	s.inventory.append(water)
+	s.inventory.append(water)
+	s._deposit_inventory()
+	check(st.get_amount("eau") == 2 and s.inventory.is_empty(), "unités déposées au stock (eau %d)" % st.get_amount("eau"))
+	check(st.items.is_empty(), "elles ne vont pas dans le stock d'objets")
+	st.free()
+	s.free()

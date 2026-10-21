@@ -61,8 +61,26 @@ func _draw() -> void:
 	# Halo pour bien repérer le loot
 	var glow := 0.35 + 0.2 * sin(_t * 4.0)
 	draw_circle(Vector2(0, -12 + bob), 13.0, Color(1, 0.85, 0.4, glow * 0.35))
+	if item is ConsumableData:
+		_draw_consumable(bob)
+		return
 	var col := Color.WHITE
 	if item is WeaponData:
 		col = item.projectile_color
 	draw_rect(Rect2(-12, -16 + bob, 24, 6), Color(0.3, 0.3, 0.3))
 	draw_rect(Rect2(-12, -16 + bob, 6, 10), col)
+
+
+## Bouteille (eau) ou boîte de conserve (nourriture).
+func _draw_consumable(bob: float) -> void:
+	var c: Color = item.color
+	var o := Vector2(0, -12 + bob)
+	if item.resource_type == "eau":
+		draw_rect(Rect2(o.x - 5, o.y - 8, 10, 16), c)
+		draw_rect(Rect2(o.x - 5, o.y - 8, 10, 16), Color(0.15, 0.25, 0.35), false, 1.5)
+		draw_rect(Rect2(o.x - 2.5, o.y - 12, 5, 4), Color(0.25, 0.4, 0.6))
+		draw_rect(Rect2(o.x - 5, o.y - 2, 10, 4), Color(0.95, 0.95, 1.0, 0.8))
+	else:
+		draw_rect(Rect2(o.x - 7, o.y - 6, 14, 12), Color(0.7, 0.7, 0.72))
+		draw_rect(Rect2(o.x - 7, o.y - 3, 14, 6), c)
+		draw_rect(Rect2(o.x - 7, o.y - 6, 14, 12), Color(0.25, 0.25, 0.27), false, 1.5)

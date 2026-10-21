@@ -246,10 +246,18 @@ Le prologue suit désormais cette histoire (demande de Romain) :
 2. On longe la butte vers l'est. Au bout, on rencontre un **second survivant** qui se joint à nous et nous **suit** (escouade de deux, pas encore de changement de personnage).
 3. Plus loin, au nord-ouest, des **monstres à éviter** (on n'a pas d'arme) ; une **embuscade blesse notre ami** (il ne peut pas mourir pendant le prologue).
 4. Plus loin, un **refuge** avec un feu de camp : l'ami blessé y reste et s'y soigne ; on part **seul chercher de l'eau** (à l'ouest).
-5. Mare trouvée : **clic droit sur la mare** pour assigner son survivant à la récolte ; **premier changement de survivant** : on dirige l'ami, au refuge.
-6. La première eau rapportée au refuge termine le prologue.
+5. (v0.27) Deux bouteilles d'eau à trouver et à rapporter au feu ; l'ami vient boire.
+6. **Premier changement de survivant** (Tab ou clic droit sur l'ami) : fin du prologue.
 
 Une flèche autour du personnage montre la direction de l'objectif quand il y en a une.
+
+## Ajouts v0.27 : unités d'eau et de nourriture à looter
+
+- Nouvel objet : les **unités de ressources** (`data/items/eau.tres` « Bouteille d'eau », `data/items/nourriture.tres` « Boîte de conserve »). On les trouve au sol ou dans les coffres, à côté des sources continues (mare, cocotiers).
+- Ramassées, elles vont dans le **sac** ; au feu de camp, elles rejoignent le **stock du village** (eau, nourriture).
+- **Un survivant qui a soif (ou faim) et qui en transporte une la consomme lui-même** (« Slurp ! », « Miam ! »).
+- Les coffres du mode test peuvent maintenant en contenir.
+- **Prologue** : plus de mare. Au refuge, l'ami blessé a soif ; on part seul trouver **deux bouteilles d'eau** à l'ouest, on les rapporte au feu, l'ami vient boire, puis **premier changement de survivant** (Tab ou clic droit sur l'ami), qui termine le prologue.
 ## Structure
 
 ```
@@ -277,6 +285,8 @@ scripts/mob.gd            monstres : comportements, attaques, effets élémentai
 scripts/mob_type.gd       type de monstre (ressource), tirage des vagues mixtes
 scripts/level_zones.gd    niveau des monstres selon la zone de la carte
 scripts/enemy_projectile.gd  crachat des monstres à distance
+scripts/consumable_data.gd   unités de ressources à ramasser (eau, nourriture)
+data/items/*.tres         unités de ressources
 scripts/nav.gd            contournement des constructions (A*), refus des enceintes fermées
 data/mobs/*.tres          types de monstres, modifiables dans l'inspecteur de Godot
 scripts/loot_chest.gd     coffre de loot cassable

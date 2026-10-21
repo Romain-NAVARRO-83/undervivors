@@ -10,6 +10,9 @@ const ENTRIES := [
 	["res://data/weapons/taser.tres", 3],
 	["res://data/weapons/blowpipe.tres", 3],
 	["res://data/weapons/harpoon.tres", 1],
+	# Unités de ressources à stocker (eau, nourriture)
+	["res://data/items/eau.tres", 6],
+	["res://data/items/nourriture.tres", 6],
 ]
 
 
@@ -33,4 +36,6 @@ static func roll(rng: RandomNumberGenerator, min_items := 1, max_items := 3) -> 
 static func item_name(item: Resource) -> String:
 	if item is WeaponData:
 		return item.weapon_name
+	if item is ConsumableData:
+		return item.item_name
 	return item.resource_name if item.resource_name != "" else "Objet"
