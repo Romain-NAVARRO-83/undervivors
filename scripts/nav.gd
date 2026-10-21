@@ -7,8 +7,12 @@ extends RefCounted
 ##
 ## Coût : on ne lance l'A* que si la ligne droite traverse une construction.
 
-const SAMPLE_STEP := 12.0
-const BODY_MARGIN := 10.0       # demi-largeur d'un personnage
+const SAMPLE_STEP := 6.0
+const BODY_MARGIN := 10.0       # rayon d'un personnage (+ marge)
+## Losange d'une tuile élargi du rayon d'un personnage : la distance du centre
+## à un côté (14,3 px pour une tuile 64 × 32) passe à 14,3 + BODY_MARGIN.
+const _EDGE_DIST := (IsoGround.TILE_W / 2.0) * (IsoGround.TILE_H / 2.0) / 35.777
+const _INFLATE := (_EDGE_DIST + BODY_MARGIN) / _EDGE_DIST
 const LOOKAHEAD := 8            # lissage : point de passage visible le plus loin
 
 ## Cases pleines (Vector2i -> true), tenues à jour par le gestionnaire de construction.
@@ -49,20 +53,39 @@ static func is_blocked_at(p: Vector2) -> bool:
 	return blocked.has(BuildManager.world_to_tile(p))
 
 
-## Vrai si un personnage peut aller en ligne droite de a à b sans toucher de construction.
+## Vrai si un personnage centré en p toucherait une construction.
+static func body_hits(p: Vector2) -> bool:
+	var t := BuildManager.world_to_tile(p)
+	var hw := IsoGround.TILE_W / 2.0 * _INFLATE
+	var hh := IsoGround.TILE_H / 2.0 * _INFLATE
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			var c := t + Vector2i(dx, dy)
+			if not blocked.has(c):
+				continue
+			var d := p - BuildManager.tile_center(c)
+			if absf(d.x) / hw + absf(d.y) / hh < 1.0:
+				return true
+	return false
+
+
+## Vrai si un personnage peut aller en ligne droite de a à b sans toucher de
+## construction (on ignore le point de départ : il peut longer un mur).
 static func segment_clear(a: Vector2, b: Vector2) -> bool:
 	if blocked.is_empty():
 		return true
 	var d := b - a
 	var l := d.length()
 	if l < 0.01:
-		return not is_blocked_at(a)
+		return true
 	var dir := d / l
-	var side := Vector2(-dir.y, dir.x) * BODY_MARGIN
 	var n := int(ceil(l / SAMPLE_STEP))
+	var started_inside := body_hits(a)
 	for i in range(1, n + 1):
 		var p := a + dir * minf(i * SAMPLE_STEP, l)
-		if is_blocked_at(p) or is_blocked_at(p + side) or is_blocked_at(p - side):
+		if body_hits(p):
+			if started_inside and i * SAMPLE_STEP < BODY_MARGIN * 2.0:
+				continue  # on s'écarte d'un mur qu'on longe
 			return false
 	return true
 
