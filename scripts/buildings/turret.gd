@@ -43,7 +43,7 @@ func _top() -> float:
 ## Point où se tient le servant : juste devant la tourelle, au pied du bloc
 ## (le bloc occupe la tuile ; le servant reste visible devant).
 func mount_point() -> Vector2:
-	return global_position + Vector2(0, HH + 6.0)
+	return global_position + Vector2(0, HH + 12.0)
 
 
 func is_manned() -> bool:

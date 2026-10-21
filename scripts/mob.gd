@@ -75,6 +75,9 @@ var _lunge := 0.0
 var _attack_cooldown := 0.0
 var _rng := RandomNumberGenerator.new()
 var _last_attacker: Node = null
+var _intent := 0.0
+var _stuck := 0.0
+const STUCK_TIME := 0.4
 
 # Effets élémentaires en cours
 var _burn_time := 0.0
@@ -313,12 +316,12 @@ func _physics_process(delta: float) -> void:
 	if target:
 		_engage(target)
 	else:
-		var to_way := Terrain.route(global_position, village_center) - global_position
+		var to_way := Nav.route(global_position, village_center) - global_position
 		if (village_center - global_position).length() > 8.0:
 			velocity = to_way.normalized() * current_speed() + _separation() * 40.0
 		else:
 			velocity = Vector2.ZERO
-	move_and_slide()
+	_move()
 	queue_redraw()
 
 
@@ -327,7 +330,7 @@ func _physics_process(delta: float) -> void:
 func _engage(target: Node2D) -> void:
 	var to_t: Vector2 = target.global_position - global_position
 	var dist := to_t.length()
-	var toward := (Terrain.route(global_position, target.global_position) - global_position).normalized()
+	var toward := (Nav.route(global_position, target.global_position) - global_position).normalized()
 	if is_ranged():
 		var keep := mob_type.keep_distance
 		if dist > mob_type.attack_range * 0.9:
@@ -376,7 +379,22 @@ func _spit(target: Node2D) -> void:
 
 
 ## Si une construction est collée au monstre, il s'arrête et la frappe.
+## Déplacement, en notant si le monstre est bloqué (il pousse sans avancer).
+func _move() -> void:
+	_intent = velocity.length()
+	move_and_slide()
+	var dt := get_physics_process_delta_time()
+	if _intent > 10.0 and get_real_velocity().length() < _intent * 0.35:
+		_stuck += dt
+	else:
+		_stuck = maxf(_stuck - dt * 2.0, 0.0)
+
+
+## Un monstre bloqué contre une construction (ou à l'arrêt à son contact) la
+## frappe. Sinon il la contourne (Nav) : les murs canalisent les monstres.
 func _attack_building() -> bool:
+	if _stuck < STUCK_TIME and _intent > 5.0:
+		return false
 	var best: Building = null
 	for b in get_tree().get_nodes_in_group("buildings"):
 		if not b.is_destroyed and b.is_touching(global_position):
@@ -389,7 +407,8 @@ func _attack_building() -> bool:
 		_lunge = 0.25
 		_attack_cooldown = mob_type.attack_cooldown
 		best.take_damage(mob_type.building_damage * (1.0 + DAMAGE_PER_LEVEL * (level - 1)))
-	move_and_slide()
+		# Après chaque coup, il retente de passer (s'il n'était pas à l'arrêt).
+		_stuck = 0.0
 	queue_redraw()
 	return true
 
@@ -406,7 +425,7 @@ func _process_posted(delta: float) -> void:
 		_engage(target)
 	elif global_position.distance_to(home) > wander_radius + 12.0:
 		# Retour au point d'attache
-		velocity = (Terrain.route(global_position, home) - global_position).normalized() * current_speed() * 0.9
+		velocity = (Nav.route(global_position, home) - global_position).normalized() * current_speed() * 0.9
 		_wander_wait = 0.0
 	else:
 		# Errance sur une petite distance
@@ -422,7 +441,7 @@ func _process_posted(delta: float) -> void:
 				velocity = Vector2.ZERO
 			else:
 				velocity = to_w.normalized() * current_speed() * 0.45
-	move_and_slide()
+	_move()
 	queue_redraw()
 
 

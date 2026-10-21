@@ -61,6 +61,8 @@ func check_tile(t: Vector2i, kind: String) -> String:
 		return "Seulement sur la place du camp (zone marron)"
 	if occupied.has(t) and is_instance_valid(occupied[t]):
 		return "Emplacement occupé"
+	if Nav.would_enclose(t):
+		return "Fermerait une enceinte : laissez un passage"
 	if absf(c.x - Terrain.RIDGE_X) < 36.0 and absf(c.y - Terrain.GAP_Y) > Terrain.GAP_HALF:
 		return "Sur la crête"
 	for n in get_tree().get_nodes_in_group("resource_nodes"):
@@ -92,11 +94,18 @@ func place(kind: String, t: Vector2i) -> Building:
 		stock.take("bois", b.cost)
 	world.add_child(b)
 	occupied[t] = b
-	b.destroyed.connect(func(x): if occupied.get(x.tile) == x: occupied.erase(x.tile))
+	Nav.set_blocked(t, true)
+	b.destroyed.connect(_on_building_destroyed)
 	if instant:
 		b.finish()
 	placed.emit(b)
 	return b
+
+
+func _on_building_destroyed(b: Building) -> void:
+	if occupied.get(b.tile) == b:
+		occupied.erase(b.tile)
+		Nav.set_blocked(b.tile, false)
 
 
 # --- Entrées ----------------------------------------------------------------

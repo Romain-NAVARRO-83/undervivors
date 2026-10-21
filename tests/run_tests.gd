@@ -39,6 +39,9 @@ var _fx: Dictionary = {}
 var _spitter: Mob
 var _target: Survivor
 var _pickups_mark := 0
+var _walker: Survivor
+var _pusher: Survivor
+var _push_wall: Building
 
 
 func _init() -> void:
@@ -399,6 +402,11 @@ func _process(_delta: float) -> bool:
 		_test_elements_end()
 		_test_spitter_end()
 		_test_squad_focus()
+		_test_walls_start()
+	if _frames == 5726 + 30:
+		_test_walls_block()
+	if _frames == 5726 + 560:
+		_test_walls_end()
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false
@@ -726,3 +734,60 @@ func _test_squad_focus() -> void:
 	_main.set_squad_mode(false)
 	check(Survivor.squad_focus == null, "fin du mode escouade : plus de cible commune")
 	p.free()
+
+
+# --- Constructions infranchissables, pas d'enceinte fermée -----------------
+
+func _test_walls_start() -> void:
+	for m in _main.get_tree().get_nodes_in_group("mobs"):
+		if is_instance_valid(m) and m.is_alive():
+			m.take_damage(99999.0)
+	var bm: BuildManager = _main.build_manager
+	for b in _main.get_tree().get_nodes_in_group("buildings"):
+		b.take_damage(99999.0)
+	bm.free_build = true
+	bm.instant = true
+	# Enceinte : entourer une case par ses 4 côtés est refusé au 4e mur.
+	var c := Vector2i(-3, -3)
+	check(bm.place("mur", c + Vector2i(1, 0)) != null, "mur 1/4 autour d'une case")
+	check(bm.place("mur", c + Vector2i(-1, 0)) != null, "mur 2/4")
+	check(bm.place("mur", c + Vector2i(0, 1)) != null, "mur 3/4")
+	check(bm.check_tile(c + Vector2i(0, -1), "mur").begins_with("Fermerait une enceinte"), "le mur qui fermerait l'enceinte est refusé")
+	check(bm.place("mur", c + Vector2i(0, -1)) == null, "la pose est bien bloquée")
+	check(bm.check_tile(c + Vector2i(1, -1), "mur") == "", "un mur à côté qui laisse un passage reste possible")
+	# Coins : deux constructions qui se touchent par un coin ferment aussi le passage.
+	check(Nav.would_enclose(Vector2i(5, 5)) == false, "case isolée : pas d'enceinte")
+	# Ligne de murs entre un survivant et le camp : il la contourne.
+	for t in [Vector2i(-7, -3), Vector2i(-6, -4), Vector2i(-5, -5), Vector2i(-4, -6), Vector2i(-3, -7)]:
+		bm.place("mur", t)
+	var a := Vector2(0, -260)
+	check(not Nav.segment_clear(a, Vector2.ZERO), "la ligne de murs coupe la ligne droite vers le camp")
+	var w := Nav.route(a, Vector2.ZERO)
+	check(absf(w.x) > 100.0, "Nav propose un détour par le côté (x = %.0f)" % w.x)
+	_main._select(null)
+	_walker = _main.survivors[1]
+	_walker.task_node = null
+	_walker.post = null
+	_walker.thirst = 100.0
+	_walker.hunger = 100.0
+	_walker.hp = _walker.max_hp
+	_walker.global_position = a
+	_main.set_alert(true)
+	# Survivant contrôlé qui pousse contre un mur : il ne passe pas.
+	_pusher = _main.survivors[0]
+	_main._select(_pusher)
+	_push_wall = bm.place("mur", Vector2i(4, -4))
+	_pusher.global_position = _push_wall.global_position + Vector2(-70, 0)
+	Input.action_press("move_right")
+
+
+func _test_walls_block() -> void:
+	Input.action_release("move_right")
+	check(_pusher.global_position.x < _push_wall.global_position.x - 20.0, "un survivant ne traverse pas un mur (x = %.0f, mur à %.0f)" % [_pusher.global_position.x, _push_wall.global_position.x])
+	_main._select(null)
+
+
+func _test_walls_end() -> void:
+	var d := _walker.global_position.distance_to(Vector2.ZERO)
+	check(d < 90.0, "en contournant les murs, le survivant rejoint le camp (%.0f px)" % d)
+	_main.set_alert(false)

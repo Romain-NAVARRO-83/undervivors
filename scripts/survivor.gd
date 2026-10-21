@@ -129,7 +129,7 @@ func _ready() -> void:
 	_rng.randomize()
 	add_to_group("survivors")
 	collision_layer = 1   # survivants
-	collision_mask = 2 | 4  # ennemis + obstacles (les survivants se traversent entre eux)
+	collision_mask = 2 | 4 | Building.LAYER  # ennemis, obstacles, constructions (les survivants se traversent entre eux)
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = 9.0
@@ -451,7 +451,7 @@ func _process_follow() -> void:
 	else:
 		# Rattrape plus vite quand il est loin, ralentit en approchant.
 		var speed := maxf(move_speed(), follow_speed * 1.15)
-		var waypoint := Terrain.route(global_position, follow_point)
+		var waypoint := Nav.route(global_position, follow_point)
 		velocity = (waypoint - global_position).normalized() * minf(speed, maxf(dist, 30.0) * 6.0)
 	_autonomous_shooting()
 
@@ -571,7 +571,7 @@ func _move_towards(target: Vector2, speed: float) -> bool:
 		velocity = Vector2.ZERO
 		return true
 	# Contourne la crête par le passage si besoin.
-	var waypoint := Terrain.route(global_position, target)
+	var waypoint := Nav.route(global_position, target)
 	velocity = (waypoint - global_position).normalized() * speed
 	return false
 

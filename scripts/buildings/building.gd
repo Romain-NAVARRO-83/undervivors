@@ -1,8 +1,9 @@
 class_name Building
 extends StaticBody2D
 ## Construction posée par le joueur (GDD 10) : un chantier qui se monte tout
-## seul en `build_time` secondes, puis une construction finie. Elle bloque les
-## monstres (couche « constructions ») mais pas les survivants (portes).
+## seul en `build_time` secondes, puis une construction finie. Elle est
+## infranchissable pour tous (survivants et monstres), qui la contournent
+## (voir Nav). On ne peut pas fermer d'enceinte : il reste toujours un passage.
 ## Elle peut être abîmée puis détruite.
 
 signal built(building: Building)

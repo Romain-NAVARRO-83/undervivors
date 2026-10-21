@@ -210,6 +210,14 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 
 - En mode escouade, quand le **leader tire sur un coffre**, tous les suiveurs à portée tirent dessus aussi jusqu'à ce qu'il casse. Exception : un suiveur qui a un monstre à moins de 120 px se défend d'abord.
 - **Texte plus net** : police en MSDF (reste nette à tous les zooms et toutes les résolutions) et filtrage linéaire par défaut au lieu de « nearest ». Concerne l'interface comme les textes dans le monde (noms d'objets, niveaux, dégâts, bulles).
+
+## Ajouts v0.23 : murs infranchissables, anticrénelage
+
+- **Murs et tourelles infranchissables** pour tous, survivants compris. Survivants et monstres les **contournent** (navigation A* sur la grille des tuiles, `scripts/nav.gd`) : les murs canalisent les monstres vers les passages.
+- Un monstre **bloqué** contre une construction (ou à l'arrêt à son contact) la frappe ; sinon il la contourne.
+- **Impossible de fermer une enceinte** : une pose est refusée si une case libre de la place du camp se retrouvait coupée de l'extérieur (« Fermerait une enceinte : laissez un passage »). Deux constructions qui se touchent par un coin bloquent le passage entre elles.
+- Le servant d'une tourelle se tient juste devant elle.
+- **Anticrénelage 2D** (MSAA 4×) : bords des formes plus lisses (rendu Forward+).
 ## Structure
 
 ```
@@ -237,6 +245,7 @@ scripts/mob.gd            monstres : comportements, attaques, effets élémentai
 scripts/mob_type.gd       type de monstre (ressource), tirage des vagues mixtes
 scripts/level_zones.gd    niveau des monstres selon la zone de la carte
 scripts/enemy_projectile.gd  crachat des monstres à distance
+scripts/nav.gd            contournement des constructions (A*), refus des enceintes fermées
 data/mobs/*.tres          types de monstres, modifiables dans l'inspecteur de Godot
 scripts/loot_chest.gd     coffre de loot cassable
 scripts/loot_table.gd     tirage du contenu des coffres
