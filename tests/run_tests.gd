@@ -31,6 +31,10 @@ var _basher: Mob
 var _target_mob: Mob
 var _wall_hp := 0.0
 var _alerted: Survivor
+var _victim: Survivor
+var _biter: Mob
+var _heal_hp := 0
+var _count_before := 0
 
 
 func _init() -> void:
@@ -50,6 +54,9 @@ func _init() -> void:
 func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames == 2:
+		# Les tests de scène qui suivent supposent des monstres inoffensifs ;
+		# les blessures sont testées à part, à la fin.
+		Mob.harmless = true
 		_main._select(null)  # personne n'est contrôlé
 		_worker = _main.survivors[1]
 		_main.assign_survivor(_worker, _main.resource_nodes[0])
@@ -182,7 +189,7 @@ func _process(_delta: float) -> bool:
 		for s in _main.survivors:
 			if s.hp < s.max_hp:
 				unhurt = false
-		check(unhurt, "les monstres ne font pas de dégâts")
+		check(unhurt, "debug « monstres inoffensifs » : aucun survivant blessé")
 		_main.wave_manager.kill_all()
 		check(_main.wave_manager.alive_count() == 0 and _cleared, "tuer tous les monstres : vague repoussée")
 		_main.debug_panel.toggle()
@@ -330,6 +337,54 @@ func _process(_delta: float) -> bool:
 		check(_alerted.activity_text() == "Alerte : défend le camp", "activité : défend le camp")
 		_main.set_alert(false)
 		check(not Survivor.alert and _alerted.task_node == _main.resource_nodes[2], "alerte levée : il garde sa tâche et la reprend")
+		# --- Blessures : les monstres mordent ---
+		Mob.harmless = false
+		_main.wave_manager.kill_all()
+		for m in _main.get_tree().get_nodes_in_group("mobs"):
+			if is_instance_valid(m) and m.is_alive():
+				m.take_damage(9999.0)
+		_victim = _main.survivors[4]
+		_main._select(_victim)  # contrôlé : il reste sur place
+		_victim.global_position = Vector2(-190, -250)
+		_victim.hp = _victim.max_hp
+		_victim.thirst = 100.0
+		_victim.hunger = 100.0
+		_biter = Mob.new()
+		_biter.posted = true
+		_biter.max_hp = 5000.0  # encaisse les tirs des autres le temps du test
+		_biter.home = _victim.global_position + Vector2(14, 0)
+		_biter.position = _biter.home
+		_main.world.add_child(_biter)
+	if _frames == 4521 + 150:
+		check(_victim.hp < _victim.max_hp, "un monstre au contact mord le survivant (%d / %d PV)" % [_victim.hp, _victim.max_hp])
+		var lost := _victim.max_hp - _victim.hp
+		check(lost >= 8 and lost <= 24, "dégâts cohérents : %d PV en 2,5 s pour un monstre" % lost)
+		if is_instance_valid(_biter):
+			_biter.take_damage(99999.0)
+		# Gravement blessé et libre, hors du camp : il rentre se soigner.
+		check(not _victim.in_camp(), "la victime est hors du camp")
+		_victim.hp = 20
+		_main._select(null)
+		_victim._since_hit = 99.0
+	if _frames == 4521 + 160:
+		check(_victim.activity_text() == "Blessé : rentre se soigner", "sous 30 %% PV : « %s »" % _victim.activity_text())
+	if _frames == 4521 + 700:
+		check(_victim.in_camp(), "le blessé est rentré au camp")
+		_heal_hp = _victim.hp
+	if _frames == 4521 + 1000:
+		check(_victim.hp >= _heal_hp + 12, "soin lent au camp (%d → %d PV en 5 s)" % [_heal_hp, _victim.hp])
+		# Mort définitive : tombe, survivant retiré.
+		var dying: Survivor = _main.survivors[3]
+		_count_before = _main.survivors.size()
+		dying.hp = 5
+		dying.take_damage(8.0)
+		dying.take_damage(8.0)  # deux morsures la même image : une seule mort
+		check(_main.survivors.size() == _count_before - 1, "mort définitive : le survivant est retiré du groupe")
+		check(not dying.is_alive(), "il n'est plus vivant")
+	if _frames == 4521 + 1005:
+		var graves: Array = _main.get_tree().get_nodes_in_group("graves")
+		check(graves.size() == 1, "une tombe marque l'endroit de sa mort")
+		check(graves.size() == 1 and "R.I.P." in (graves[0].get_child(0) as Label).text, "la tombe porte son nom")
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false

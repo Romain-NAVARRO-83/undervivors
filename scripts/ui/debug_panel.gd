@@ -57,6 +57,13 @@ func _ready() -> void:
 	_auto.add_theme_font_size_override("font_size", 12)
 	_auto.toggled.connect(func(on): main.wave_manager.set_auto(on))
 	root.add_child(_auto)
+	var harm := CheckBox.new()
+	harm.text = "Monstres inoffensifs"
+	harm.focus_mode = Control.FOCUS_NONE
+	harm.add_theme_font_size_override("font_size", 12)
+	harm.button_pressed = Mob.harmless
+	harm.toggled.connect(func(on): Mob.harmless = on)
+	root.add_child(harm)
 
 	_section(root, "Survivants")
 	var g := _grid(root)

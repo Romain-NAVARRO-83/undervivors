@@ -1,7 +1,7 @@
 class_name Mob
 extends CharacterBody2D
-## Monstre de base (placeholder de créature). Pour l'instant il ne fait PAS de
-## dégâts : il se jette sur sa cible sans la blesser. Deux comportements :
+## Monstre de base (placeholder de créature). Au contact, il bondit sur sa cible
+## et la mord (dégâts à chaque bond). Deux comportements :
 ## - Vague : chasse le survivant le plus proche, sinon marche vers le village.
 ## - Posté (`posted = true`) : erre autour de `home` ; poursuit un survivant qui
 ##   s'approche, mais abandonne au-delà de `leash_range` de chez lui et y revient.
@@ -14,9 +14,14 @@ signal died(mob: Mob)
 var xp_reward: int = 20
 var hp: float = 30.0
 var village_center := Vector2.ZERO
-## Dégâts infligés aux constructions à chaque bond (les survivants, eux, ne sont
-## pas blessés pour l'instant).
+## Dégâts infligés aux constructions à chaque bond.
 const BUILDING_DAMAGE := 8.0
+## Dégâts infligés à un survivant à chaque bond (un bond toutes les 1,2 s,
+## soit ~6,7 PV/s par monstre au contact).
+const SURVIVOR_DAMAGE := 8.0
+const LUNGE_COOLDOWN := 1.2
+## Debug : monstres inoffensifs (panneau F1).
+static var harmless := false
 
 ## Ennemi posté (GDD : ennemis placés sur la carte et issus des générateurs).
 var posted := false
@@ -108,17 +113,25 @@ func _physics_process(delta: float) -> void:
 	var to_way := Terrain.route(global_position, goal) - global_position
 	var dir := to_way / maxf(to_way.length(), 0.001)
 	if target and dist < 20.0:
-		# Au contact : bond d'attaque, sans dégâts pour l'instant.
+		# Au contact : bond d'attaque qui mord le survivant.
 		velocity = Vector2.ZERO
-		if _lunge_cooldown <= 0.0:
-			_lunge = 0.25
-			_lunge_cooldown = 1.2
+		_bite(target)
 	elif dist > 8.0:
 		velocity = dir * speed + _separation() * 40.0
 	else:
 		velocity = Vector2.ZERO
 	move_and_slide()
 	queue_redraw()
+
+
+## Bond d'attaque sur un survivant au contact (si le bond est rechargé).
+func _bite(target: Node2D) -> void:
+	if _lunge_cooldown > 0.0:
+		return
+	_lunge = 0.25
+	_lunge_cooldown = LUNGE_COOLDOWN
+	if not harmless and target.has_method("take_damage"):
+		target.take_damage(SURVIVOR_DAMAGE)
 
 
 ## Si une construction est collée au monstre, il s'arrête et la frappe.
@@ -152,9 +165,7 @@ func _process_posted(delta: float) -> void:
 		var to_t: Vector2 = target.global_position - global_position
 		if to_t.length() < 20.0:
 			velocity = Vector2.ZERO
-			if _lunge_cooldown <= 0.0:
-				_lunge = 0.25
-				_lunge_cooldown = 1.2
+			_bite(target)
 		else:
 			velocity = (Terrain.route(global_position, target.global_position) - global_position).normalized() * speed + _separation() * 40.0
 	elif global_position.distance_to(home) > wander_radius + 12.0:
@@ -183,6 +194,8 @@ func _nearest_survivor() -> Node2D:
 	var best: Node2D = null
 	var best_d := aggro_range
 	for s in get_tree().get_nodes_in_group("survivors"):
+		if not s.is_alive():
+			continue
 		var d := global_position.distance_to(s.global_position)
 		if d < best_d:
 			best_d = d

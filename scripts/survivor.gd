@@ -83,6 +83,20 @@ const REFILL_PER_UNIT := 25.0         # une unité du stock rend 25 points
 const EMPTY_SLOWDOWN := 0.6           # jauge vide : vitesse × 0,6
 const NEED_RESOURCE := {"eau": "thirst", "nourriture": "hunger"}
 
+## Blessures (GDD 5.5) : les monstres mordent ; mort définitive à 0 PV.
+## Soin lent sur la place du camp, si on n'a pas été touché depuis un moment
+## et qu'on n'a ni faim ni soif au point d'avoir une jauge vide.
+const REGEN_DELAY := 5.0        # secondes sans être touché avant de se soigner
+const REGEN_PER_SEC := 3.0      # PV rendus par seconde au camp
+const HP_LOW := 0.3             # sous 30 % : un survivant libre rentre se soigner
+const HP_HEALED := 0.8          # il repart au-dessus de 80 %
+var _dead := false
+var _since_hit := 99.0
+var _regen_acc := 0.0
+var _hurt_flash := 0.0
+var _hurt_bubble_cd := 0.0
+var _healing := false
+
 var thirst: float = NEED_MAX
 var hunger: float = NEED_MAX
 var bubble: SpeechBubble
@@ -249,6 +263,8 @@ func activity_text() -> String:
 		return role + (" · porte %d %s" % [carrying, carrying_type] if carrying > 0 else "")
 	if following:
 		return "Suit le leader en formation"
+	if _healing and post == null and not alert:
+		return "Se soigne au camp" if in_camp() else "Blessé : rentre se soigner"
 	if _refilling:
 		return "Va boire et manger au village"
 	if post != null:
@@ -303,6 +319,7 @@ func full_name() -> String:
 func _physics_process(delta: float) -> void:
 	_cooldown = max(_cooldown - delta, 0.0)
 	_update_needs(delta)
+	_update_health(delta)
 	if selected:
 		_process_controlled()
 	elif following:
@@ -445,7 +462,14 @@ func _process_autonomous(delta: float) -> void:
 		_process_alert()
 		_autonomous_shooting()
 		return
-	if _going_to_refill():
+	if _going_to_heal():
+		# Gravement blessé : il rentre au camp se soigner, puis reprend sa tâche.
+		# (Il garde son chargement et le dépose en passant au feu.)
+		if in_camp():
+			_process_wander(delta)
+		else:
+			_move_towards(village_center + _deposit_offset, move_speed())
+	elif _going_to_refill():
 		# Assoiffé ou affamé : il va au stock de lui-même (GDD 9), puis reprend.
 		_move_towards(village_center + _deposit_offset, move_speed() * 0.8)
 	elif task_node != null or carrying > 0:
@@ -617,11 +641,88 @@ func add_xp(amount: int) -> void:
 		stat_points += 1  # le joueur choisit la stat (GDD 5.1)
 
 
+const LINES_HURT := [
+	"Aïe !", "Ça mord !", "Pas le visage !", "Lâche-moi, sale bestiole !",
+	"Ouille. Ça, je m'en souviendrai.", "Qui a invité ces trucs ?",
+]
+const LINES_BADLY_HURT := [
+	"Je pisse le sang, là.", "Dites à ma famille… ah non, je l'ai oubliée.",
+	"Je crois que je vois une lumière.", "Quelqu'un a un pansement ? Un grand ?",
+]
+
+
+func is_alive() -> bool:
+	return not _dead
+
+
+## Vrai si le survivant est sur la place du camp (zone où l'on se soigne).
+func in_camp() -> bool:
+	return IsoGround.in_village(BuildManager.world_to_tile(global_position))
+
+
 func take_damage(amount: float) -> void:
+	if _dead:
+		return
 	hp -= int(amount)
+	_since_hit = 0.0
+	_hurt_flash = 0.15
+	_spawn_damage_number(amount)
 	if hp <= 0:
+		hp = 0
+		_dead = true
 		died.emit(self)
 		queue_free()  # mort définitive
+		return
+	if _hurt_bubble_cd <= 0.0:
+		var low := float(hp) / max_hp < HP_LOW
+		var lines: Array = LINES_BADLY_HURT if low else LINES_HURT
+		if low or _rng.randf() < 0.35:
+			_say(lines[_rng.randi_range(0, lines.size() - 1)], 2.0)
+			_hurt_bubble_cd = 5.0
+
+
+## Soin lent au camp, minuteries des blessures.
+func _update_health(delta: float) -> void:
+	_since_hit += delta
+	_hurt_flash = maxf(_hurt_flash - delta, 0.0)
+	_hurt_bubble_cd -= delta
+	if hp >= max_hp or _since_hit < REGEN_DELAY or thirst <= 0.0 or hunger <= 0.0:
+		_regen_acc = 0.0
+		return
+	if not in_camp():
+		return
+	_regen_acc += REGEN_PER_SEC * delta
+	if _regen_acc >= 1.0:
+		var gain := int(_regen_acc)
+		_regen_acc -= gain
+		hp = mini(hp + gain, max_hp)
+
+
+## Un survivant libre gravement blessé rentre se soigner jusqu'à 80 % des PV.
+func _going_to_heal() -> bool:
+	var ratio := float(hp) / max_hp
+	if ratio < HP_LOW and not _healing:
+		_healing = true
+		_say("Je rentre me soigner !", 2.0)
+	elif ratio >= HP_HEALED:
+		_healing = false
+	return _healing
+
+
+func _spawn_damage_number(amount: float) -> void:
+	var label := Label.new()
+	label.text = "-%d" % int(round(amount))
+	label.add_theme_color_override("font_color", Color(1, 0.35, 0.3))
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	label.add_theme_constant_override("outline_size", 3)
+	label.add_theme_font_size_override("font_size", 11)
+	label.position = Vector2(_rng.randf_range(2, 12), -44)
+	label.z_index = 10
+	add_child(label)
+	var tw := label.create_tween()
+	tw.tween_property(label, "position:y", label.position.y - 18, 0.6)
+	tw.parallel().tween_property(label, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(label.queue_free)
 
 
 func _draw() -> void:
@@ -639,7 +740,7 @@ func _draw() -> void:
 		draw_circle(p, 5.5, Color(0.15, 0.3, 0.45))
 		draw_string(ThemeDB.fallback_font, p + Vector2(-3, 4), str(squad_index + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
 	# Corps (placeholder) : vêtement + tête issue de l'apparence
-	draw_circle(Vector2(0, -12), 9.0, _body_color)
+	draw_circle(Vector2(0, -12), 9.0, Color(1, 0.3, 0.25) if _hurt_flash > 0.0 else _body_color)
 	if is_hero:
 		draw_arc(Vector2(0, -12), 9.0, 0.0, TAU, 20, Color(0.95, 0.75, 0.2), 2.0)
 	SurvivorAppearance.draw_face(self, Vector2(0, -26), 7.0, appearance, false)
@@ -661,4 +762,6 @@ func _draw() -> void:
 	# Barre de PV
 	var w := 24.0
 	draw_rect(Rect2(-w / 2, -38, w, 3), Color(0.2, 0, 0))
-	draw_rect(Rect2(-w / 2, -38, w * float(hp) / max_hp, 3), Color(0.3, 0.9, 0.3))
+	var ratio := float(hp) / max_hp
+	var bar := Color(0.3, 0.9, 0.3) if ratio >= 0.6 else (Color(0.95, 0.8, 0.2) if ratio >= HP_LOW else Color(0.95, 0.3, 0.25))
+	draw_rect(Rect2(-w / 2, -38, w * ratio, 3), bar)

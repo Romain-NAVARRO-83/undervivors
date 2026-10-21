@@ -167,6 +167,15 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - **Bosquets** dispersés sur l'herbe, en gardant dégagés : la place du camp, chaque point de récolte, coffre, camp, générateur, l'arrivée des vagues, et des **couloirs** entre le camp (ou le col) et chacun d'eux.
 - Placement reproductible (graine fixe), réglable dans scripts/tree_field.gd.
 
+
+## Ajouts v0.19 : blessures et mort
+
+- Les monstres **mordent** : à chaque bond au contact, 8 PV en moins (un bond toutes les 1,2 s, soit ~7 PV/s par monstre). Chiffres rouges, survivant qui flashe, barre de PV verte → jaune → rouge.
+- **Mort définitive** à 0 PV : le survivant disparaît avec ce qu'il portait, une **tombe** (croix de travers et « R.I.P. Prénom Nom ») reste sur place, message à l'écran.
+- **Soin lent sur la place du camp** : 3 PV/s, après 5 s sans être touché, tant que les jauges d'eau et de nourriture ne sont pas vides.
+- Un survivant **libre** (errance ou récolte) sous 30 % de PV **rentre se soigner** au camp et repart à 80 %. Les suiveurs d'escouade et le survivant contrôlé, eux, restent aux ordres du joueur.
+- Bulles d'humour noir quand on se fait mordre.
+- Debug (F1) : case « Monstres inoffensifs ».
 ## Structure
 
 ```
@@ -190,6 +199,7 @@ scripts/resource_node.gd  points de récolte (mare, cocotiers, forêt)
 scripts/village_stock.gd  stock commun du village
 scripts/ui/squad_bar.gd   barre d'escouade
 scripts/speech_bubble.gd  bulle de dialogue (phylactère)
+scripts/grave.gd          tombe laissée à la mort d'un survivant
 scripts/loot_chest.gd     coffre de loot cassable
 scripts/loot_table.gd     tirage du contenu des coffres
 scripts/item_pickup.gd    objet au sol, ramassage

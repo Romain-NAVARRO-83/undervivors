@@ -413,6 +413,12 @@ func formation_offsets(n: int, dir: Vector2) -> Array[Vector2]:
 
 func _on_survivor_died(s: Survivor) -> void:
 	survivors.erase(s)
+	# Mort définitive (GDD 5.5) : une tombe reste là où il est tombé.
+	var grave := Grave.new()
+	grave.dead_name = s.full_name()
+	grave.position = s.global_position
+	world.add_child.call_deferred(grave)
+	_notify("%s n'a pas survécu." % s.full_name())
 	if squad.has(s):
 		_remove_from_squad(s)  # passe le commandement au membre suivant
 	if s == selected:
