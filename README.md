@@ -176,6 +176,29 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 - Un survivant **libre** (errance ou récolte) sous 30 % de PV **rentre se soigner** au camp et repart à 80 %. Les suiveurs d'escouade et le survivant contrôlé, eux, restent aux ordres du joueur.
 - Bulles d'humour noir quand on se fait mordre.
 - Debug (F1) : case « Monstres inoffensifs ».
+
+## Ajouts v0.20 : types de monstres, niveaux, éléments
+
+- **4 types de monstres**, réglables dans `data/mobs/*.tres` (comme les armes) :
+
+| Type | Attaque | Vitesse | PV (niv. 1) | Dégâts | Éléments |
+|---|---|---|---|---|---|
+| Rongeur | corps à corps | moyenne | 30 | 8 | — |
+| Cracheur | à distance (crachats lents, esquivables), garde ses distances | lente | 25 | 6 | faible feu, résiste poison |
+| Cogneur | corps à corps, gros et lent | lente | 120 | 20 | faible électrique, résiste poison |
+| Feu follet | corps à corps, flotte | rapide | 20 | 5 | immunisé feu, faible glace (×2) |
+
+- **Niveaux** : par niveau au-delà du premier, +20 % de PV, +15 % de dégâts, +25 % d'XP. Affichés au-dessus des monstres (« Niv. 3 »).
+- **Zones de niveau** : 1 autour du camp, 2 sur le reste de la côte ouest, 3 au-delà de la crête. Les ennemis postés prennent le niveau de leur zone ; chaque générateur a son propre niveau (2) et sa liste de types (rongeurs, cracheurs). Le HUD indique la zone du survivant contrôlé.
+- **Monstre spécial** : « Le Vieux Cogneur », niveau 4, posté à l'est de la crête. ×4 PV, ×1,5 dégâts, ×4 XP, plus gros, aura dorée ; laisse 2 à 4 objets à sa mort.
+- **Effets élémentaires actifs** (sur les monstres) :
+  - **Feu** : brûlure 3 s (la moitié des dégâts de feu par seconde), relancée par chaque coup, ne se cumule pas.
+  - **Poison** : 5 s, se cumule jusqu'à 5 doses (30 % des dégâts de poison par seconde et par dose).
+  - **Glace** : ralentit de 40 % pendant 2 s (plus sur un monstre faible).
+  - **Électrique** : un arc touche jusqu'à 2 monstres à moins de 80 px (60 % des dégâts électriques).
+  - Résistances et faiblesses multiplient la part élémentaire ; immunité = ni dégâts ni effet (« Immunisé » s'affiche). Chiffres colorés par élément, « ! » sur une faiblesse.
+  - Un monstre tué par brûlure, poison ou arc donne son XP au dernier tireur.
+- Debug (F1) : niveau et type des vagues (ou « Mixte ») ; le niveau sert aussi aux vagues automatiques.
 ## Structure
 
 ```
@@ -200,6 +223,11 @@ scripts/village_stock.gd  stock commun du village
 scripts/ui/squad_bar.gd   barre d'escouade
 scripts/speech_bubble.gd  bulle de dialogue (phylactère)
 scripts/grave.gd          tombe laissée à la mort d'un survivant
+scripts/mob.gd            monstres : comportements, attaques, effets élémentaires
+scripts/mob_type.gd       type de monstre (ressource), tirage des vagues mixtes
+scripts/level_zones.gd    niveau des monstres selon la zone de la carte
+scripts/enemy_projectile.gd  crachat des monstres à distance
+data/mobs/*.tres          types de monstres, modifiables dans l'inspecteur de Godot
 scripts/loot_chest.gd     coffre de loot cassable
 scripts/loot_table.gd     tirage du contenu des coffres
 scripts/item_pickup.gd    objet au sol, ramassage

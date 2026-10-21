@@ -33,7 +33,12 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if body.has_method("take_damage"):
+	if body is Mob:
+		# Les monstres gèrent la part élémentaire (résistances, effets).
+		var killed_mob: bool = body.take_hit(damage, element, element_damage, shooter)
+		if killed_mob and is_instance_valid(shooter) and shooter.has_method("add_xp"):
+			shooter.add_xp(body.xp_reward)
+	elif body.has_method("take_damage"):
 		var killed: bool = body.take_damage(damage + element_damage, element)
 		if killed and is_instance_valid(shooter) and shooter.has_method("add_xp"):
 			shooter.add_xp(body.get("xp_reward") if body.get("xp_reward") != null else 10)

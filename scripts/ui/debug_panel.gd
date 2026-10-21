@@ -7,6 +7,8 @@ var main: Node  # scène principale (main.gd)
 
 var _count: SpinBox
 var _dir: OptionButton
+var _level: SpinBox
+var _type: OptionButton
 var _auto: CheckBox
 var _info: Label
 var _speed_label: Label
@@ -47,9 +49,28 @@ func _ready() -> void:
 	for d in ["Aléatoire", "Nord", "Est", "Sud", "Ouest"]:
 		_dir.add_item(d)
 	row.add_child(_dir)
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 6)
+	root.add_child(row2)
+	row2.add_child(UIStyle.label("Niveau", 12, UIStyle.TEXT_DIM))
+	_level = SpinBox.new()
+	_level.min_value = 1
+	_level.max_value = 10
+	_level.value = 1
+	_level.focus_mode = Control.FOCUS_NONE
+	_level.get_line_edit().focus_mode = Control.FOCUS_CLICK
+	_level.value_changed.connect(func(v): main.wave_manager.auto_level = int(v))
+	row2.add_child(_level)
+	_type = OptionButton.new()
+	_type.focus_mode = Control.FOCUS_NONE
+	_type.add_item("Mixte")
+	for id in MobType.TYPE_IDS:
+		_type.add_item(MobType.by_id(id).type_name)
+	row2.add_child(_type)
 	var wrow := _grid(root)
 	_button(wrow, "Lancer une vague", func():
-		main.wave_manager.spawn_wave(int(_count.value), _dir.get_item_text(_dir.selected)))
+		var t: String = "Mixte" if _type.selected == 0 else MobType.TYPE_IDS[_type.selected - 1]
+		main.wave_manager.spawn_wave(int(_count.value), _dir.get_item_text(_dir.selected), int(_level.value), t))
 	_button(wrow, "Tuer les monstres", func(): main.wave_manager.kill_all())
 	_auto = CheckBox.new()
 	_auto.text = "Vagues automatiques (toutes les 30 s)"

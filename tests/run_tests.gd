@@ -35,6 +35,10 @@ var _victim: Survivor
 var _biter: Mob
 var _heal_hp := 0
 var _count_before := 0
+var _fx: Dictionary = {}
+var _spitter: Mob
+var _target: Survivor
+var _pickups_mark := 0
 
 
 func _init() -> void:
@@ -351,10 +355,11 @@ func _process(_delta: float) -> bool:
 		_victim.hunger = 100.0
 		_biter = Mob.new()
 		_biter.posted = true
-		_biter.max_hp = 5000.0  # encaisse les tirs des autres le temps du test
 		_biter.home = _victim.global_position + Vector2(14, 0)
 		_biter.position = _biter.home
 		_main.world.add_child(_biter)
+		_biter.max_hp = 5000.0  # encaisse les tirs des autres le temps du test
+		_biter.hp = 5000.0
 	if _frames == 4521 + 150:
 		check(_victim.hp < _victim.max_hp, "un monstre au contact mord le survivant (%d / %d PV)" % [_victim.hp, _victim.max_hp])
 		var lost := _victim.max_hp - _victim.hp
@@ -385,6 +390,14 @@ func _process(_delta: float) -> bool:
 		var graves: Array = _main.get_tree().get_nodes_in_group("graves")
 		check(graves.size() == 1, "une tombe marque l'endroit de sa mort")
 		check(graves.size() == 1 and "R.I.P." in (graves[0].get_child(0) as Label).text, "la tombe porte son nom")
+		_test_mob_types_and_levels()
+		_test_elements_start()
+		_test_spitter_start()
+	if _frames == 5526 + 60:
+		_test_elements_after_1s()
+	if _frames == 5526 + 200:
+		_test_elements_end()
+		_test_spitter_end()
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false
@@ -546,3 +559,130 @@ func test_stock() -> void:
 	check(st.get_amount("eau") == 5, "stock : ajout")
 	check(st.take("eau", 8) == 5 and st.get_amount("eau") == 0, "stock : on ne prend pas plus que disponible")
 	st.free()
+
+
+# --- Monstres : types, niveaux, zones, spécial ------------------------------
+
+func _spawn_test_mob(type_id: String, pos: Vector2, level := 1) -> Mob:
+	var m := Mob.new()
+	m.mob_type = MobType.by_id(type_id)
+	m.level = level
+	m.posted = true
+	m.home = pos
+	m.aggro_range = 0.0  # ne bouge pas, n'attaque pas
+	m.wander_radius = 0.0
+	m.position = pos
+	m.world = _main.world
+	_main.world.add_child(m)
+	return m
+
+
+func _test_mob_types_and_levels() -> void:
+	for id in MobType.TYPE_IDS:
+		check(MobType.by_id(id) != null, "type de monstre « %s » chargé" % id)
+	check(MobType.by_id("cracheur").attack == MobType.Attack.DISTANCE, "le cracheur attaque à distance")
+	check(MobType.by_id("cogneur").max_hp > MobType.by_id("rongeur").max_hp * 3.0, "le cogneur est bien plus solide")
+	check(MobType.by_id("feu_follet").speed > MobType.by_id("rongeur").speed, "le feu follet est rapide")
+	var r1 := _spawn_test_mob("rongeur", Vector2(-600, 450), 1)
+	var r3 := _spawn_test_mob("rongeur", Vector2(-640, 450), 3)
+	check(is_equal_approx(r1.max_hp, 30.0) and is_equal_approx(r3.max_hp, 42.0), "niveau 3 : +40 %% de PV (%.0f → %.0f)" % [r1.max_hp, r3.max_hp])
+	check(is_equal_approx(r3.damage, 8.0 * 1.3) and r3.xp_reward == 30, "niveau 3 : +30 %% de dégâts, +50 %% d'XP")
+	r1.take_damage(999.0)
+	r3.take_damage(999.0)
+	# Zones de niveau
+	check(LevelZones.level_at(Vector2(100, 50)) == 1, "zone du camp : niveau 1")
+	check(LevelZones.level_at(Vector2(-950, -300)) == 2, "côte ouest : niveau 2")
+	check(LevelZones.level_at(Vector2(1300, -420)) == 3, "au-delà de la crête : niveau 3")
+	_main.setup_map_enemies()
+	var ok := true
+	for m in _main.get_tree().get_nodes_in_group("mobs"):
+		if m.posted and not m.special and not m.is_queued_for_deletion() and m.level != LevelZones.level_at(m.home):
+			if not _main.get_tree().get_nodes_in_group("spawners").any(func(sp): return sp._mobs.has(m)):
+				ok = false
+	check(ok, "les ennemis postés ont le niveau de leur zone")
+	# Monstre spécial
+	var boss: Mob = null
+	for m in _main.get_tree().get_nodes_in_group("special_mobs"):
+		if not m.is_queued_for_deletion():
+			boss = m
+	check(boss != null and boss.display_name() == "Le Vieux Cogneur", "un monstre spécial est posté sur la carte")
+	if boss:
+		check(boss.level == 4 and boss.max_hp > 500.0, "monstre spécial : niveau 4, %.0f PV" % boss.max_hp)
+		_pickups_mark = _main.get_tree().get_nodes_in_group("item_pickups").size()
+		boss.take_damage(99999.0)
+
+
+func _test_elements_start() -> void:
+	_main.wave_manager.kill_all()
+	for m in _main.get_tree().get_nodes_in_group("mobs"):
+		if m.is_alive():
+			m.take_damage(9999.0)
+	var base := Vector2(-560, 330)
+	# Feu follet : immunisé au feu (ni dégâts de feu ni brûlure), faible à la glace.
+	var wisp := _spawn_test_mob("feu_follet", base)
+	wisp.take_hit(2.0, WeaponData.Element.FEU, 10.0, null)
+	check(is_equal_approx(wisp.hp, 18.0) and wisp._burn_time <= 0.0, "feu follet immunisé au feu (%.0f PV)" % wisp.hp)
+	wisp.take_hit(0.0, WeaponData.Element.GLACE, 2.0, null)
+	check(wisp._slow > Mob.SLOW_BASE and wisp.current_speed() < wisp.speed * 0.5, "glace sur un feu follet (faible) : très ralenti")
+	check(is_equal_approx(wisp.hp, 14.0), "faiblesse : dégâts de glace doublés")
+	# Brûlure sur un rongeur
+	var burned := _spawn_test_mob("rongeur", base + Vector2(200, 0))
+	burned.take_hit(0.0, WeaponData.Element.FEU, 4.0, null)
+	_fx["burn_hp"] = burned.hp
+	_fx["burned"] = burned
+	# Poison cumulable
+	var poisoned := _spawn_test_mob("rongeur", base + Vector2(200, 80))
+	for i in 3:
+		poisoned.take_hit(0.0, WeaponData.Element.POISON, 2.0, null)
+	check(poisoned._poison_stacks == 3, "le poison se cumule (3 doses)")
+	_fx["poisoned"] = poisoned
+	_fx["poison_hp"] = poisoned.hp
+	# Électrique : arc vers les voisins
+	var center := _spawn_test_mob("cogneur", base + Vector2(0, 160))
+	var n1 := _spawn_test_mob("rongeur", base + Vector2(40, 160))
+	var n2 := _spawn_test_mob("rongeur", base + Vector2(-40, 170))
+	var far := _spawn_test_mob("rongeur", base + Vector2(200, 160))
+	center.take_hit(0.0, WeaponData.Element.ELECTRIQUE, 10.0, null)
+	check(is_equal_approx(center.hp, 120.0 - 15.0), "cogneur faible à l'électricité (%.0f PV)" % center.hp)
+	check(n1.hp < n1.max_hp and n2.hp < n2.max_hp, "l'arc électrique touche les voisins")
+	check(is_equal_approx(far.hp, far.max_hp), "l'arc ne touche pas les monstres éloignés")
+
+
+func _test_elements_after_1s() -> void:
+	var burned: Mob = _fx["burned"]
+	check(is_instance_valid(burned) and burned.hp < _fx["burn_hp"] - 1.0, "la brûlure fait des dégâts dans la durée (%.1f → %.1f)" % [_fx["burn_hp"], burned.hp])
+
+
+func _test_elements_end() -> void:
+	var burned: Mob = _fx["burned"]
+	check(burned._burn_time <= 0.0, "la brûlure s'éteint au bout de 3 s")
+	var poisoned: Mob = _fx["poisoned"]
+	var lost: float = _fx["poison_hp"] - poisoned.hp
+	check(lost > 3.0, "le poison (3 doses) ronge le monstre (%.1f PV perdus)" % lost)
+	var n := _main.get_tree().get_nodes_in_group("item_pickups").size()
+	check(n >= _pickups_mark + 2, "le monstre spécial laisse du butin (%d objets)" % (n - _pickups_mark))
+
+
+# --- Cracheur : attaque à distance ------------------------------------------
+
+func _test_spitter_start() -> void:
+	_target = _main.survivors[0]
+	_main._select(_target)
+	_target.global_position = Vector2(-620, -60)
+	_target.hp = _target.max_hp
+	_target._since_hit = 0.0
+	_spitter = Mob.new()
+	_spitter.mob_type = MobType.by_id("cracheur")
+	_spitter.posted = true
+	_spitter.home = _target.global_position + Vector2(-200, 0)
+	_spitter.position = _spitter.home
+	_spitter.world = _main.world
+	_main.world.add_child(_spitter)
+	_spitter.max_hp = 5000.0
+	_spitter.hp = 5000.0
+
+
+func _test_spitter_end() -> void:
+	check(_target.hp < _target.max_hp, "le cracheur touche le survivant à distance (%d PV)" % _target.hp)
+	var d := _spitter.global_position.distance_to(_target.global_position)
+	check(d > 60.0, "le cracheur garde ses distances (%.0f px)" % d)

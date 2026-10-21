@@ -37,8 +37,14 @@ func alive_count() -> int:
 	return n
 
 
-## Lance une vague de `count` monstres depuis `direction` ("Aléatoire" ou une clé de DIRECTIONS).
-func spawn_wave(count := 5, direction := "Aléatoire") -> Array[Mob]:
+## Niveau des monstres des vagues automatiques.
+var auto_level := 1
+
+
+## Lance une vague de `count` monstres depuis `direction` ("Aléatoire" ou une clé
+## de DIRECTIONS), de niveau `level`. `type_id` : "Mixte" (tirage pondéré) ou un
+## identifiant de MobType.TYPE_IDS.
+func spawn_wave(count := 5, direction := "Aléatoire", level := 1, type_id := "Mixte") -> Array[Mob]:
 	if direction == "Aléatoire" or not DIRECTIONS.has(direction):
 		direction = DIRECTIONS.keys()[_rng.randi_range(0, DIRECTIONS.size() - 1)]
 	wave_number += 1
@@ -48,6 +54,9 @@ func spawn_wave(count := 5, direction := "Aléatoire") -> Array[Mob]:
 	var mobs: Array[Mob] = []
 	for i in count:
 		var m := Mob.new()
+		m.mob_type = MobType.random_mixed(_rng) if type_id == "Mixte" else MobType.by_id(type_id)
+		m.level = level
+		m.world = world
 		m.village_center = village_center
 		m.position = center + perp * (i - (count - 1) / 2.0) * 26.0 + dir * _rng.randf_range(-20, 20)
 		m.died.connect(_on_mob_died)
@@ -77,7 +86,7 @@ func _process(delta: float) -> void:
 	_auto_timer -= delta
 	if _auto_timer <= 0.0:
 		_auto_timer = auto_interval
-		spawn_wave(_rng.randi_range(3, 6))
+		spawn_wave(_rng.randi_range(3, 6), "Aléatoire", auto_level)
 
 
 func time_to_next_auto_wave() -> float:

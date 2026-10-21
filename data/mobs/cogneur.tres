@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MobType" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/mob_type.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+type_name = "Cogneur"
+attack = 0
+shape = 2
+max_hp = 120.0
+speed = 42.0
+damage = 20.0
+attack_cooldown = 1.8
+attack_range = 26.0
+building_damage = 20.0
+xp_reward = 60
+size = 1.5
+color = Color(0.5, 0.36, 0.3, 1)
+electric_mult = 1.5
+poison_mult = 0.5

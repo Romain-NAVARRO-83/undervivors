@@ -37,13 +37,23 @@ var alert_banner: Label
 var alert_active := false
 ## Coffres de loot (GDD 8 bis) : on tire dessus pour les casser.
 ## Ennemis postés sur la carte (camps) et générateurs de bots.
+## Chaque camp : position, types des monstres. Leur niveau vient de la zone
+## (LevelZones : 1 près du camp, 2 sur la côte ouest, 3 au-delà de la crête).
 const ENEMY_CAMPS := [
-	[Vector2(1300, -420), 3],
-	[Vector2(-950, -300), 3],
-	[Vector2(1150, 330), 2],   # gardent le coffre de l'est
-	[Vector2(1750, 60), 3],
-	[Vector2(-300, -800), 2],  # gardent le coffre du nord
+	[Vector2(1300, -420), ["cogneur", "rongeur", "rongeur"]],
+	[Vector2(-950, -300), ["rongeur", "rongeur", "cracheur"]],
+	[Vector2(1150, 330), ["feu_follet", "feu_follet"]],   # gardent le coffre de l'est
+	[Vector2(1750, 60), ["cracheur", "cracheur", "rongeur"]],
+	[Vector2(-300, -800), ["rongeur", "feu_follet"]],  # gardent le coffre du nord
 ]
+## Monstres spéciaux (GDD : apparitions à certains endroits) :
+## position, type, nom, bonus de niveau par rapport à la zone.
+const SPECIAL_MOBS := [
+	[Vector2(1500, -200), "cogneur", "Le Vieux Cogneur", 1],
+]
+## Générateurs : niveau et types produits.
+const SPAWNER_LEVEL := 2
+const SPAWNER_TYPES := ["rongeur", "cracheur"]
 ## Les deux générateurs gardent le seul passage de la crête (côté est).
 const SPAWNER_POSITIONS := [Vector2(Terrain.RIDGE_X + 75, -80), Vector2(Terrain.RIDGE_X + 75, 80)]
 const CHEST_POSITIONS := [Vector2(-880, -140), Vector2(-260, -760), Vector2(1080, 360), Vector2(-160, 520), Vector2(1850, -320)]
@@ -479,6 +489,9 @@ func _plant_trees() -> void:
 	for camp in ENEMY_CAMPS:
 		field.keep_clear.append([camp[0], 110.0])
 		field.corridors.append([VILLAGE_CENTER if camp[0].x < Terrain.RIDGE_X else gap, camp[0]])
+	for sp_def in SPECIAL_MOBS:
+		field.keep_clear.append([sp_def[0], 110.0])
+		field.corridors.append([VILLAGE_CENTER if sp_def[0].x < Terrain.RIDGE_X else gap, sp_def[0]])
 	for pos in SPAWNER_POSITIONS:
 		field.keep_clear.append([pos, 170.0])
 	field.corridors.append([VILLAGE_CENTER, gap])
@@ -523,20 +536,42 @@ func setup_map_enemies() -> void:
 	rng.randomize()
 	for camp in ENEMY_CAMPS:
 		var home: Vector2 = camp[0]
-		for i in camp[1]:
+		for type_id in camp[1]:
 			var m := Mob.new()
+			m.mob_type = MobType.by_id(type_id)
+			m.level = LevelZones.level_at(home, VILLAGE_CENTER)
+			m.world = world
 			m.posted = true
 			m.home = home
 			m.aggro_range = 200.0
 			m.village_center = VILLAGE_CENTER
 			m.position = home + Vector2(rng.randf_range(-30, 30), rng.randf_range(-15, 15))
 			world.add_child(m)
+	for sp_def in SPECIAL_MOBS:
+		var boss := Mob.new()
+		boss.mob_type = MobType.by_id(sp_def[1])
+		boss.special = true
+		boss.special_name = sp_def[2]
+		boss.level = LevelZones.level_at(sp_def[0], VILLAGE_CENTER) + sp_def[3]
+		boss.world = world
+		boss.posted = true
+		boss.home = sp_def[0]
+		boss.position = sp_def[0]
+		boss.wander_radius = 40.0
+		boss.leash_range = 260.0
+		boss.aggro_range = 230.0
+		boss.village_center = VILLAGE_CENTER
+		boss.died.connect(func(m): _notify("%s est tombé ! Son butin est au sol." % m.display_name()))
+		world.add_child(boss)
 	for pos in SPAWNER_POSITIONS:
 		var sp := MobSpawner.new()
 		sp.world = world
 		sp.village_center = VILLAGE_CENTER
 		sp.position = pos
 		sp.zone_radius = 120.0
+		sp.mob_level = SPAWNER_LEVEL
+		for t in SPAWNER_TYPES:
+			sp.mob_types.append(MobType.by_id(t))
 		sp.destroyed.connect(func(_s): _notify("Générateur détruit ! Éliminez ses derniers bots."))
 		sp.zone_secured.connect(func(_s): _notify("Zone sécurisée"))
 		world.add_child(sp)
@@ -797,6 +832,8 @@ func _update_hud() -> void:
 			lines.append("Sac %d/%d : à rapporter au feu de camp" % [selected.inventory.size(), selected.bag_capacity()])
 		if selected.carrying > 0:
 			lines.append("Porte %d %s : à déposer au feu de camp" % [selected.carrying, selected.carrying_type])
+		var zl := LevelZones.level_at(selected.global_position, VILLAGE_CENTER)
+		lines.append("Zone : %s (monstres niv. %d)" % [LevelZones.zone_name(zl), zl])
 	else:
 		hud_portrait.visible = false
 		lines.append("Mode gestion  ·  caméra libre")

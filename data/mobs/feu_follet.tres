@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MobType" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/mob_type.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+type_name = "Feu follet"
+attack = 0
+shape = 3
+max_hp = 20.0
+speed = 120.0
+damage = 5.0
+attack_cooldown = 0.8
+attack_range = 18.0
+building_damage = 3.0
+xp_reward = 25
+size = 0.9
+color = Color(1, 0.55, 0.15, 1)
+fire_mult = 0.0
+ice_mult = 2.0

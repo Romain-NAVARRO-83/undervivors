@@ -16,6 +16,10 @@ signal zone_secured(spawner: MobSpawner)
 @export var zone_radius: float = 150.0
 ## PV rendus par seconde aux monstres présents dans sa zone.
 @export var heal_per_second: float = 4.0
+## Niveau des monstres produits (GDD : le niveau dépend du générateur).
+@export var mob_level: int = 2
+## Types produits, tirés au hasard (vide = rongeurs).
+@export var mob_types: Array[MobType] = []
 var xp_reward: int = 100
 var hp: float = 220.0
 var world: Node2D
@@ -63,6 +67,10 @@ func spawn_mob() -> Mob:
 	if is_destroyed or alive_mobs() >= max_alive:
 		return null
 	var m := Mob.new()
+	if not mob_types.is_empty():
+		m.mob_type = mob_types[_rng.randi_range(0, mob_types.size() - 1)]
+	m.level = mob_level
+	m.world = world
 	m.posted = true
 	m.home = global_position
 	m.wander_radius = zone_radius * 0.6
