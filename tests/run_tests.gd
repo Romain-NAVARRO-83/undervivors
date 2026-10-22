@@ -56,6 +56,7 @@ func _init() -> void:
 	test_needs()
 	test_inventory()
 	test_consumables()
+	test_survivor_sprites()
 	test_terrain()
 	# Test de scène : cycle de récolte complet à la mare (se termine dans _process).
 	_main = load("res://scenes/main.tscn").instantiate()
@@ -866,3 +867,32 @@ func test_consumables() -> void:
 	check(st.items.is_empty(), "elles ne vont pas dans le stock d'objets")
 	st.free()
 	s.free()
+
+
+
+# --- Sprites 3D pré-rendus des survivants ----------------------------------
+
+func test_survivor_sprites() -> void:
+	for style in SurvivorSprite.STYLE_FILES:
+		check(SurvivorSprite.available(style), "planches présentes : %s" % SurvivorSprite.STYLE_FILES[style])
+	var tex: Texture2D = load("res://assets/survivors/court_shade.png")
+	check(tex.get_width() == 128 * 7 and tex.get_height() == 160 * 8, "planche 7 × 8 images de 128 × 160")
+	check(SurvivorSprite.dir_index(Vector2(1, 0)) == 0, "direction est")
+	check(SurvivorSprite.dir_index(Vector2(0, 1)) == 2, "direction face (sud)")
+	check(SurvivorSprite.dir_index(Vector2(-1, 0)) == 4, "direction ouest")
+	check(SurvivorSprite.dir_index(Vector2(0, -1)) == 6, "direction dos (nord)")
+	check(SurvivorSprite.dir_index(Vector2(1, 0.5)) == 1, "diagonale iso sud-est")
+	check(SurvivorSprite.dir_index(Vector2(-1, -0.5)) == 5, "diagonale iso nord-ouest")
+	var sp := SurvivorSprite.new()
+	var a := SurvivorAppearance.new()
+	a.hair_style = SurvivorAppearance.HairStyle.LONG
+	sp.setup(a)
+	check(sp.hframes == 7 and sp.vframes == 8, "découpage de la planche")
+	sp.animate(Vector2(-1, 0), Vector2.ZERO, 0.1, 0.0)
+	check(sp.frame == 4 * 7, "à l'arrêt vers l'ouest : image de repos (%d)" % sp.frame)
+	var seen := {}
+	for i in 12:
+		sp.animate(Vector2(0, 1), Vector2(0, 150), 1.0 / 30.0, 0.0)
+		seen[sp.frame] = true
+	check(seen.size() >= 3 and not seen.has(2 * 7), "en marchant vers le bas : images de marche qui défilent")
+	sp.free()

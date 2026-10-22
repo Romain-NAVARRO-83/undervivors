@@ -260,6 +260,27 @@ Une flèche autour du personnage montre la direction de l'objectif quand il y en
 - **Un survivant qui a soif (ou faim) et qui en transporte une la consomme lui-même** (« Slurp ! », « Miam ! »).
 - Les coffres du mode test peuvent maintenant en contenir.
 - **Prologue** : plus de mare. Au refuge, l'ami blessé a soif ; on part seul trouver **deux bouteilles d'eau** à l'ouest, on les rapporte au feu, l'ami vient boire, puis **premier changement de survivant** (Tab ou clic droit sur l'ami), qui termine le prologue.
+
+## Ajouts v0.29 : survivants en 3D iso (sprites pré-rendus, 8 directions)
+
+- Les survivants sont affichés avec des **sprites pré-rendus en 3D** : un modèle low-poly cartoon (contour noir, ombrage en aplats) rendu sous l'angle iso du jeu.
+- **8 directions** : le survivant regarde vers sa **visée** s'il est armé, sinon dans le **sens de la marche** (il garde sa direction à l'arrêt).
+- **Animation** : 1 image de repos + 6 images de marche, cadence proportionnelle à la vitesse.
+- **Variété conservée** : une planche par coiffure (chauve, court, hérissé, long, chignon) ; la peau, les cheveux et le vêtement sont teintés en jeu selon l'apparence de chaque survivant. Flash rouge quand il est blessé ; anneau doré au sol pour les héros.
+- Les vignettes de l'interface (panneau, escouade) gardent le visage dessiné en 2D.
+
+### Planches de sprites
+
+Fichiers : `assets/survivors/<coiffure>_shade.png` et `<coiffure>_mask.png`.
+
+- **Disposition** : 7 colonnes (0 = repos, 1 à 6 = marche) × 8 lignes (directions : 0 = est, puis dans le sens horaire à l'écran : sud-est, sud (face), sud-ouest, ouest, nord-ouest, nord (dos), nord-est). Images de 128 × 160 px, **pieds au point (64, 150)**.
+- `_shade` : le rendu ; peau, cheveux et vêtement y sont **blancs** (teintés en jeu).
+- `_mask` : rouge = peau, vert = cheveux, bleu = vêtement, noir ailleurs.
+- **Régénérer** les placeholders (fenêtre requise) :
+  `godot --path . --rendering-method gl_compatibility -s tools/bake_survivor_sprites.gd`
+  Le modèle 3D est dans `tools/survivor_model.gd`.
+- **Remplacer par des rendus définitifs** : garder la même disposition et le même point des pieds. Une planche déjà en couleurs fonctionne aussi : il suffit de supprimer le `_mask.png` correspondant (plus de teinte).
+- Sans planche pour une coiffure, le survivant est dessiné à l'ancienne (2D).
 ## Structure
 
 ```
@@ -288,6 +309,10 @@ scripts/mob_type.gd       type de monstre (ressource), tirage des vagues mixtes
 scripts/level_zones.gd    niveau des monstres selon la zone de la carte
 scripts/enemy_projectile.gd  crachat des monstres à distance
 scripts/consumable_data.gd   unités de ressources à ramasser (eau, nourriture)
+scripts/survivor_sprite.gd   affichage des survivants (planches 8 directions, teinte)
+shaders/survivor_tint.gdshader  teinte peau / cheveux / vêtement
+tools/                    générateur des planches (modèle 3D + rendu)
+assets/survivors/         planches de sprites des survivants
 data/items/*.tres         unités de ressources
 scripts/nav.gd            contournement des constructions (A*), refus des enceintes fermées
 data/mobs/*.tres          types de monstres, modifiables dans l'inspecteur de Godot
@@ -307,7 +332,7 @@ scripts/story/            mode histoire : prologue (déroulé), carte de la plag
 
 ## Graphismes
 
-Tout est dessiné en code avec des formes simples. Format prévu pour les tuiles : **64×32 px** (losange isométrique 2:1). Les sprites remplaceront les fonctions `_draw()`.
+Les survivants utilisent des planches de sprites pré-rendues en 3D (voir « Planches de sprites ») ; le reste est dessiné en code avec des formes simples. Format prévu pour les tuiles : **64×32 px** (losange isométrique 2:1). Les sprites remplaceront les fonctions `_draw()`.
 
 ## Tests
 

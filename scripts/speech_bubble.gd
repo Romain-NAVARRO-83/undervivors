@@ -4,7 +4,7 @@ extends Node2D
 ## say(texte, durée) l'affiche puis le fait disparaître en fondu.
 
 const MAX_WIDTH := 150.0
-const ANCHOR_Y := -48.0  # pointe de la bulle, au-dessus de la tête
+const ANCHOR_Y := -58.0  # pointe de la bulle, au-dessus de la tête
 
 var _panel: PanelContainer
 var _label: Label

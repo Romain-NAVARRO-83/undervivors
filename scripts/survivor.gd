@@ -132,6 +132,11 @@ var _wander_target: Vector2
 var _wander_wait := 0.0
 var _cooldown := 0.0
 var _body_color := Color(0.3, 0.6, 0.9)
+## Rendu 3D pré-calculé (planches de sprites) et calque des indicateurs
+## (PV, charge, visée, n° d'escouade) dessiné par-dessus.
+var _sprite: SurvivorSprite
+var _overlay: Overlay
+var _facing := Vector2(0, 1)
 
 
 func _ready() -> void:
@@ -163,6 +168,13 @@ func _ready() -> void:
 	thirst = _rng.randf_range(60.0, NEED_MAX)
 	hunger = _rng.randf_range(60.0, NEED_MAX)
 	_bubble_cooldown = _rng.randf_range(0.0, 3.0)
+	if SurvivorSprite.available(appearance.hair_style):
+		_sprite = SurvivorSprite.new()
+		add_child(_sprite)
+		_sprite.setup(appearance)
+		_overlay = Overlay.new()
+		_overlay.survivor = self
+		add_child(_overlay)
 	bubble = SpeechBubble.new()
 	add_child(bubble)
 	_pick_wander_target()
@@ -358,7 +370,21 @@ func _physics_process(delta: float) -> void:
 	else:
 		_process_autonomous(delta)
 	move_and_slide()
+	_animate_sprite(delta)
 	queue_redraw()
+
+
+## Oriente et anime le sprite : vers la visée s'il est armé, sinon dans le
+## sens de la marche (il garde sa dernière direction à l'arrêt).
+func _animate_sprite(delta: float) -> void:
+	if _sprite == null:
+		return
+	var v := get_real_velocity()
+	if weapon != null and aim_dir.length() > 0.01:
+		_facing = aim_dir
+	elif v.length() > 8.0:
+		_facing = v
+	_sprite.animate(_facing, v, delta, _hurt_flash)
 
 
 func _process_controlled() -> void:
@@ -833,36 +859,60 @@ func _draw() -> void:
 		draw_arc(Vector2.ZERO, 16.0, 0.0, TAU, 32, Color(1, 1, 1, 0.9), 2.0)
 	elif squad_member:
 		draw_arc(Vector2.ZERO, 15.0, 0.0, TAU, 32, Color(0.4, 0.75, 1.0, 0.75), 1.5)
+	if is_hero and _sprite != null:
+		# Héros : anneau doré au sol
+		draw_arc(Vector2.ZERO, 19.0, 0.0, TAU, 32, Color(0.95, 0.75, 0.2, 0.9), 1.5)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# Numéro de membre d'escouade au-dessus de la tête
-	if squad_member:
-		var p := Vector2(-15, -40)
-		draw_circle(p, 5.5, Color(0.15, 0.3, 0.45))
-		draw_string(ThemeDB.fallback_font, p + Vector2(-3, 4), str(squad_index + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
-	# Corps (placeholder) : vêtement + tête issue de l'apparence
+	if _sprite != null:
+		return  # le sprite et le calque des indicateurs font le reste
+	# Ancien dessin 2D (si les planches de sprites sont absentes)
 	draw_circle(Vector2(0, -12), 9.0, Color(1, 0.3, 0.25) if _hurt_flash > 0.0 else _body_color)
 	if is_hero:
 		draw_arc(Vector2(0, -12), 9.0, 0.0, TAU, 20, Color(0.95, 0.75, 0.2), 2.0)
 	SurvivorAppearance.draw_face(self, Vector2(0, -26), 7.0, appearance, false)
+	_draw_overlay(self, 0.0)
+
+
+## Indicateurs au-dessus du personnage : n° d'escouade, charge portée, visée,
+## barre de PV. `lift` remonte ce qui se place au-dessus de la tête.
+func _draw_overlay(ci: CanvasItem, lift: float) -> void:
+	var top := -38.0 - lift
+	if squad_member:
+		var p := Vector2(-15, top - 2)
+		ci.draw_circle(p, 5.5, Color(0.15, 0.3, 0.45))
+		ci.draw_string(ThemeDB.fallback_font, p + Vector2(-3, 4), str(squad_index + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
 	# Chargement porté : seau (eau), panier (nourriture), fagot de bûches (bois)
 	if carrying > 0:
 		if carrying_type == "bois":
 			for k in 3:
 				var y := -22.0 + k * 3.5
-				draw_rect(Rect2(-12, y, 16, 3.5), Color(0.5, 0.33, 0.18) if k % 2 == 0 else Color(0.42, 0.27, 0.14))
-				draw_circle(Vector2(-12, y + 1.75), 1.75, Color(0.78, 0.62, 0.4))
-			draw_line(Vector2(-6, -23), Vector2(-6, -11), Color(0.3, 0.22, 0.15), 1.0)
+				ci.draw_rect(Rect2(-12, y, 16, 3.5), Color(0.5, 0.33, 0.18) if k % 2 == 0 else Color(0.42, 0.27, 0.14))
+				ci.draw_circle(Vector2(-12, y + 1.75), 1.75, Color(0.78, 0.62, 0.4))
+			ci.draw_line(Vector2(-6, -23), Vector2(-6, -11), Color(0.3, 0.22, 0.15), 1.0)
 		else:
 			var col := Color(0.35, 0.65, 0.9) if carrying_type == "eau" else Color(0.75, 0.55, 0.3)
-			draw_rect(Rect2(7, -18, 9, 9), Color(0.45, 0.32, 0.2))
-			draw_rect(Rect2(8, -17, 7, 3), col)
-			draw_arc(Vector2(11.5, -18), 4.5, PI, TAU, 8, Color(0.3, 0.25, 0.2), 1.2)
+			ci.draw_rect(Rect2(7, -18, 9, 9), Color(0.45, 0.32, 0.2))
+			ci.draw_rect(Rect2(8, -17, 7, 3), col)
+			ci.draw_arc(Vector2(11.5, -18), 4.5, PI, TAU, 8, Color(0.3, 0.25, 0.2), 1.2)
 	# Visée (seulement avec une arme)
 	if weapon != null:
-		draw_line(Vector2(0, -12), Vector2(0, -12) + aim_dir * 18.0, Color(0.2, 0.15, 0.1), 3.0)
+		var hand := Vector2(0, -12 - lift * 0.3)
+		ci.draw_line(hand, hand + aim_dir * 18.0, Color(0.2, 0.15, 0.1), 3.0)
 	# Barre de PV
 	var w := 24.0
-	draw_rect(Rect2(-w / 2, -38, w, 3), Color(0.2, 0, 0))
+	ci.draw_rect(Rect2(-w / 2, top, w, 3), Color(0.2, 0, 0))
 	var ratio := float(hp) / max_hp
 	var bar := Color(0.3, 0.9, 0.3) if ratio >= 0.6 else (Color(0.95, 0.8, 0.2) if ratio >= HP_LOW else Color(0.95, 0.3, 0.25))
-	draw_rect(Rect2(-w / 2, -38, w * ratio, 3), bar)
+	ci.draw_rect(Rect2(-w / 2, top, w * ratio, 3), bar)
+
+
+## Calque dessiné par-dessus le sprite.
+class Overlay:
+	extends Node2D
+	var survivor: Survivor
+
+	func _process(_delta: float) -> void:
+		queue_redraw()
+
+	func _draw() -> void:
+		survivor._draw_overlay(self, 12.0)
