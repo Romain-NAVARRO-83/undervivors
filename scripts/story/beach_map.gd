@@ -7,14 +7,14 @@ extends RefCounted
 
 ## Limites de la carte (px).
 const LEFT := -1500.0
-const RIGHT := 2900.0
+const RIGHT := 1400.0
 const TOP := -1050.0
 const BOTTOM := 650.0
 
 ## Étendue de la butte (x) : elle commence contre la falaise ouest et
 ## s'arrête à BUTTE_END ; au-delà, on peut remonter vers le nord.
 const BUTTE_START := -1360.0
-const BUTTE_END := 2250.0
+const BUTTE_END := 750.0
 
 const START := Vector2(-1150, 70)
 

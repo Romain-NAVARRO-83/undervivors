@@ -85,8 +85,8 @@ func _process(_d: float) -> bool:
 	if _f == 960 + 620:
 		check(_a.global_position.distance_to(_s.global_position) < 70.0, "l'ami suit de près (%.0f px)" % _a.global_position.distance_to(_s.global_position))
 		# Embuscade en entrant dans la zone des monstres
-		_s.global_position = Vector2(2380, -380)
-		_a.global_position = Vector2(2400, -340)
+		_s.global_position = Vector2(880, -380)
+		_a.global_position = Vector2(900, -340)
 	if _f == 960 + 700:
 		check(_p._ambushed, "embuscade déclenchée")
 		check(_a.hp < _a.max_hp and _p._ambush_bitten, "l'ami est blessé (%d PV)" % _a.hp)

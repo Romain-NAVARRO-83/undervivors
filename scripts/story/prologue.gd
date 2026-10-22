@@ -27,13 +27,13 @@ const LINES_WAKE := [
 ]
 
 ## Lieux (au nord de la butte, après son extrémité).
-const FRIEND_POS := Vector2(2420, -250)
-const REFUGE_POS := Vector2(1350, -860)
+const FRIEND_POS := Vector2(920, -250)
+const REFUGE_POS := Vector2(-150, -860)
 ## Deux bouteilles d'eau à trouver, à l'ouest du refuge (près de débris).
-const WATER_POS := [Vector2(640, -760), Vector2(330, -560)]
+const WATER_POS := [Vector2(-860, -760), Vector2(-1170, -560)]
 const WATER_NEEDED := 2
 ## Monstres à éviter entre l'ami et le refuge.
-const DANGER_MOBS := [Vector2(2100, -470), Vector2(1830, -580), Vector2(1960, -790), Vector2(1610, -500)]
+const DANGER_MOBS := [Vector2(600, -470), Vector2(330, -580), Vector2(460, -790), Vector2(110, -500)]
 const DANGER_LINE_Y := -360.0   # en passant cette ligne vers le nord : embuscade
 
 var step: Step = Step.WAKE
@@ -261,7 +261,7 @@ func _place_decor() -> void:
 		palm.height = rng.randf_range(60, 90)
 		palm.lean = rng.randf_range(-0.3, 0.35)
 		world.add_child(palm)
-	for x in [-400.0, 650.0, 1450.0]:
+	for x in [-400.0, 380.0]:
 		var palm := Palm.new()
 		palm.position = Vector2(x, BeachMap.butte_y(x) + 28.0)
 		palm.height = 75.0
@@ -415,7 +415,7 @@ func _ambush() -> void:
 	ambusher.mob_type = MobType.by_id("rongeur")
 	ambusher.level = 1
 	ambusher.world = world
-	var side := Vector2(1, 0) if friend.global_position.x < 2300 else Vector2(-1, 0)
+	var side := Vector2(1, 0) if friend.global_position.x < 800 else Vector2(-1, 0)
 	ambusher.position = friend.global_position + side * 16.0
 	ambusher.village_center = ambusher.position
 	ambusher.preferred_target = friend

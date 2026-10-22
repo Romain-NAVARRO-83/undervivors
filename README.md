@@ -251,6 +251,8 @@ Le prologue suit désormais cette histoire (demande de Romain) :
 
 Une flèche autour du personnage montre la direction de l'objectif quand il y en a une.
 
+(v0.28) Plage raccourcie d'environ 40 % : la butte fait ~2 100 px au lieu de 3 600 ; la suite (ami, monstres, refuge, eau) est rapprochée d'autant.
+
 ## Ajouts v0.27 : unités d'eau et de nourriture à looter
 
 - Nouvel objet : les **unités de ressources** (`data/items/eau.tres` « Bouteille d'eau », `data/items/nourriture.tres` « Boîte de conserve »). On les trouve au sol ou dans les coffres, à côté des sources continues (mare, cocotiers).
