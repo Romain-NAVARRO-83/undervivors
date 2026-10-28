@@ -1,3 +1,4 @@
+class_name StoryPrologue
 extends Node2D
 ## Mode histoire — Prologue « La plage ».
 ##
@@ -15,8 +16,15 @@ extends Node2D
 ##    l'ami vient boire.
 ## 6. Premier changement de survivant (Tab ou clic droit sur l'ami) : fin du
 ##    prologue.
+##
+## Le chapitre 1 (« L'abri », voir Chapter1) enchaîne sur la même carte,
+## agrandie vers le nord. Le menu titre peut aussi y mener directement.
 
 const MENU_SCENE := "res://scenes/menu.tscn"
+
+## Chapitre où commence la scène : 0 = prologue, 1 = chapitre 1 (réglé par le
+## menu titre et par « Recommencer »).
+static var start_chapter := 0
 
 enum Step { WAKE, MOVE, FOLLOW_BUTTE, MEET, TO_REFUGE, REFUGE, FIND_WATER, BRING_WATER, FRIEND_DRINKS, SWITCH, DONE }
 
@@ -58,6 +66,9 @@ var _ambush_bitten := false
 var _rng := RandomNumberGenerator.new()
 var _follow_dir := Vector2.LEFT
 var _arrow: ObjectiveArrow
+var chapter: Chapter1          # chapitre en cours après le prologue (sinon null)
+var _north_bound: CollisionShape2D
+var _title: Label
 
 # Interface
 var _objective: Label
@@ -68,6 +79,8 @@ var _overlay_title: Label
 var _overlay_text: Label
 var _overlay_buttons: HBoxContainer
 var _pause: PanelContainer
+var _chapter_label: Label
+var _restart_btn: Button
 
 
 func _enter_tree() -> void:
@@ -99,7 +112,6 @@ func _ready() -> void:
 	_place_places()
 
 	survivor = _make_survivor(BeachMap.START)
-	survivor.died.connect(_on_survivor_died)
 	_start_pos = survivor.global_position
 	_set_controlled(survivor)
 
@@ -120,6 +132,11 @@ func _ready() -> void:
 	world.add_child(_arrow)
 
 	_build_hud()
+	survivor.died.connect(_on_any_died)
+	friend.died.connect(_on_any_died)
+	if start_chapter == 1:
+		_skip_prologue()
+		return
 	_set_objective("…")
 	var tw := create_tween()
 	tw.tween_interval(0.5)
@@ -136,6 +153,10 @@ func _make_survivor(pos: Vector2) -> Survivor:
 	s.village_center = Vector2(-99999, -99999)
 	s.position = pos
 	world.add_child(s)
+	# Jauges pleines : sinon le premier survivant pourrait boire au feu l'eau
+	# rapportée pour l'ami.
+	s.thirst = Survivor.NEED_MAX
+	s.hunger = Survivor.NEED_MAX
 	return s
 
 
@@ -220,10 +241,21 @@ func _build_bounds() -> void:
 		world.add_child(rock)
 		y += 18.0
 	# Bords de la carte
-	var r := Rect2(BeachMap.LEFT, BeachMap.TOP, BeachMap.RIGHT - BeachMap.LEFT, BeachMap.BOTTOM - BeachMap.TOP)
+	# Les bords est et ouest vont jusqu'au nord du chapitre 1 ; le bord nord du
+	# prologue (TOP) s'ouvre au chapitre 1 (open_north).
+	var r := Rect2(BeachMap.LEFT, BeachMap.NORTH_TOP, BeachMap.RIGHT - BeachMap.LEFT, BeachMap.BOTTOM - BeachMap.NORTH_TOP)
 	_add_segment(body, r.position, Vector2(r.end.x, r.position.y))
 	_add_segment(body, Vector2(r.end.x, r.position.y), r.end)
 	_add_segment(body, Vector2(r.position.x, r.position.y), Vector2(r.position.x, r.end.y))
+	_add_segment(body, Vector2(BeachMap.LEFT, BeachMap.TOP), Vector2(BeachMap.RIGHT, BeachMap.TOP))
+	_north_bound = body.get_child(body.get_child_count() - 1)
+
+
+## Chapitre 1 : le nord de l'île s'ouvre (bord du prologue retiré, caméra libérée).
+func open_north() -> void:
+	if is_instance_valid(_north_bound):
+		_north_bound.queue_free()
+	camera.limit_top = int(BeachMap.NORTH_TOP - 100)
 
 
 func _add_segment(body: StaticBody2D, a: Vector2, b: Vector2) -> void:
@@ -314,14 +346,16 @@ func _place_places() -> void:
 # --- Déroulé ----------------------------------------------------------------
 
 func _process(delta: float) -> void:
-	if step == Step.DONE or not is_instance_valid(controlled):
+	if not is_instance_valid(controlled):
+		return
+	camera.position = controlled.global_position
+	_update_status()
+	_update_follow()
+	if step == Step.DONE:
 		return
 	_t += delta
 	_step_t += delta
-	camera.position = controlled.global_position
 	var p := survivor.global_position if is_instance_valid(survivor) else controlled.global_position
-	_update_status()
-	_update_follow()
 	# Monologue du réveil
 	if _wake_line < LINES_WAKE.size() and _t >= LINES_WAKE[_wake_line][0]:
 		survivor._say(LINES_WAKE[_wake_line][1], 2.3)
@@ -441,15 +475,34 @@ func _update_ambush() -> void:
 		_set_objective("%s est blessé ! Filez au refuge, au nord-ouest." % friend.first_name)
 
 
-## L'ami suit le joueur, un pas derrière lui (escouade de deux).
+## L'autre survivant suit celui qu'on dirige, un pas derrière lui (escouade de deux).
 func _update_follow() -> void:
-	if not friend.following:
+	var leader := controlled
+	var f := other_of(leader)
+	if f == null or not f.following:
 		return
-	var v := survivor.velocity
+	var v := leader.velocity
 	if v.length() > 5.0:
 		_follow_dir = v.normalized()
-	friend.follow_point = survivor.global_position - _follow_dir * 34.0
-	friend.follow_speed = survivor.move_speed()
+	f.follow_point = leader.global_position - _follow_dir * 34.0
+	f.follow_speed = leader.move_speed()
+
+
+## Survivants encore en vie.
+func alive_survivors() -> Array[Survivor]:
+	var out: Array[Survivor] = []
+	for s in [survivor, friend]:
+		if is_instance_valid(s) and s.is_alive():
+			out.append(s)
+	return out
+
+
+## L'autre survivant vivant (null s'il n'y en a pas).
+func other_of(s: Survivor) -> Survivor:
+	for o in alive_survivors():
+		if o != s:
+			return o
+	return null
 
 
 ## Unités d'eau trouvées : dans le sac du survivant ou déjà déposées au stock.
@@ -461,52 +514,179 @@ func water_found() -> int:
 	return n + stock.total_added.get("eau", 0)
 
 
-## Premier changement de survivant (Tab ou clic droit sur l'autre).
+## Changement de survivant (Tab ou clic droit sur l'autre). Le premier
+## termine le prologue ; au chapitre 1, on change quand on veut.
 func switch_survivor() -> bool:
-	if step != Step.SWITCH:
+	if chapter == null and step != Step.SWITCH:
 		return false
-	_set_controlled(friend if controlled == survivor else survivor)
-	controlled._say("À moi. Ça va mieux, avec de l'eau.", 2.5)
-	_finish()
+	var other := other_of(controlled)
+	if other == null:
+		return false
+	var was_following := other.following
+	_set_controlled(other)
+	if chapter == null:
+		controlled._say("À moi. Ça va mieux, avec de l'eau.", 2.5)
+		_finish()
+	else:
+		# L'escouade garde sa forme : si l'autre suivait, c'est l'ancien qui suit.
+		var prev := other_of(controlled)
+		if prev:
+			prev.following = was_following
+	return true
+
+
+## Chapitre 1 : F — l'autre survivant nous suit, ou retourne attendre au refuge.
+func toggle_follow() -> bool:
+	if chapter == null:
+		return false
+	var o := other_of(controlled)
+	if o == null:
+		return false
+	o.following = not o.following
+	if o.following:
+		o._say("Je te suis.", 1.8)
+	else:
+		o._say("Je rentre au refuge.", 1.8)
+		o._pick_wander_target()
 	return true
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if step != Step.SWITCH:
+	if chapter != null:
+		if chapter.handle_input(event):
+			get_viewport().set_input_as_handled()
+			return
+		if event.is_action_pressed("toggle_squad"):
+			toggle_follow()
+			get_viewport().set_input_as_handled()
+			return
+	if chapter == null and step != Step.SWITCH:
 		return
 	if event.is_action_pressed("next_survivor"):
 		switch_survivor()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		var other := friend if controlled == survivor else survivor
-		if other.global_position.distance_to(get_global_mouse_position()) < 26.0:
+		var other := other_of(controlled)
+		if other and other.global_position.distance_to(get_global_mouse_position()) < 26.0:
 			switch_survivor()
 			get_viewport().set_input_as_handled()
 
 
+## Fin du prologue : carton de titre, puis le chapitre 1 enchaîne.
 func _finish() -> void:
 	step = Step.DONE
 	_set_objective("Prologue terminé")
 	var tw := create_tween()
-	tw.tween_interval(3.0)
-	tw.tween_property(_fade, "color:a", 0.85, 1.5)
-	tw.tween_callback(func(): _show_overlay("Fin du prologue", "Un refuge, un peu d'eau, deux survivants.\nÀ suivre…", true))
+	tw.tween_interval(2.5)
+	tw.tween_property(_fade, "color:a", 1.0, 1.2)
+	tw.tween_callback(_start_chapter1)
+	tw.tween_callback(func(): _show_title("Chapitre 1", "L'abri"))
+	tw.tween_interval(2.4)
+	tw.tween_property(_fade, "color:a", 0.0, 1.5)
 
 
-func _on_survivor_died(_s: Survivor) -> void:
+func _start_chapter1() -> void:
+	if chapter != null:
+		return
+	chapter = Chapter1.new()
+	chapter.name = "Chapitre1"
+	chapter.story = self
+	add_child(chapter)
+	_chapter_label.text = "CHAPITRE 1 — L'ABRI"
+	chapter.start()
+
+
+## Départ direct au chapitre 1 (menu titre, « Recommencer ») : on reprend la
+## situation de fin du prologue — refuge allumé, les deux survivants au feu,
+## sans arme, et l'on dirige le second.
+func _skip_prologue() -> void:
 	step = Step.DONE
+	_wake_line = LINES_WAKE.size()
+	_seen_wreck = true
+	for w in water_items:
+		if is_instance_valid(w):
+			w.queue_free()
+	refuge.lit = true
+	for s in [survivor, friend]:
+		s.village_center = REFUGE_POS
+		s.camp_regen = true
+		s.following = false
+	survivor.global_position = REFUGE_POS + Vector2(40, 30)
+	friend.global_position = REFUGE_POS + Vector2(-30, 40)
+	friend.wander_radius = 50.0
+	friend.hp = friend.max_hp
+	survivor.wander_radius = 50.0
+	survivor._pick_wander_target()
+	_set_controlled(friend)
+	camera.position = friend.global_position
+	camera.reset_smoothing()
+	_start_chapter1()
+	_show_title("Chapitre 1", "L'abri")
+	var tw := create_tween()
+	tw.tween_interval(1.6)
+	tw.tween_property(_fade, "color:a", 0.0, 1.5)
+
+
+## Fin d'un chapitre : écran de fin (Recommencer / Menu titre).
+func end_chapter(title: String, text: String) -> void:
+	var tw := create_tween()
+	tw.tween_interval(3.5)
+	tw.tween_property(_fade, "color:a", 0.85, 1.5)
+	tw.tween_callback(func(): _show_overlay(title, text, true))
+
+
+## Mort définitive. Au chapitre 1, si l'autre survivant vit encore, on le
+## reprend en main ; sinon c'est la fin.
+func _on_any_died(s: Survivor) -> void:
+	var grave := Grave.new()
+	grave.dead_name = s.full_name()
+	grave.position = s.global_position
+	world.add_child.call_deferred(grave)
+	var left := alive_survivors()
+	left.erase(s)
+	if chapter != null and not left.is_empty():
+		var o: Survivor = left[0]
+		o.following = false
+		if s == controlled:
+			_set_controlled(o)
+		o._say("%s… Non.\nSur cette île, on ne revient pas." % s.first_name, 3.5)
+		return
+	step = Step.DONE
+	if chapter != null:
+		chapter.step = Chapter1.Step.DONE
 	var tw := create_tween()
 	tw.tween_property(_fade, "color:a", 0.85, 1.2)
 	tw.tween_callback(func(): _show_overlay("Mort définitive", "Sur cette île, on ne revient pas.", true))
 
 
+## Recommence là où l'on en est : le prologue, ou le chapitre en cours.
+func _restart() -> void:
+	start_chapter = 1 if chapter != null else 0
+	get_tree().paused = false
+	get_tree().reload_current_scene()
+
+
+func _to_menu() -> void:
+	start_chapter = 0
+	get_tree().paused = false
+	get_tree().change_scene_to_file(MENU_SCENE)
+
+
 func _update_status() -> void:
 	var lines: PackedStringArray = []
 	for s in [survivor, friend]:
-		if not is_instance_valid(s) or (s == friend and step < Step.MEET):
+		if not is_instance_valid(s) or (s == friend and step < Step.MEET and chapter == null):
 			continue
 		var arme: String = s.weapon.weapon_name if s.weapon else "sans arme"
-		lines.append("%s%s : PV %d/%d · %s" % ["▶ " if s == controlled else "", s.first_name, s.hp, s.max_hp, arme])
+		var line := "%s%s : PV %d/%d · %s" % ["▶ " if s == controlled else "", s.first_name, s.hp, s.max_hp, arme]
+		if chapter != null:
+			line += " · soif %d %% · faim %d %%" % [roundi(s.thirst), roundi(s.hunger)]
+			if s.following:
+				line += " · suit"
+		lines.append(line)
+	if chapter != null:
+		lines.append("Stock du refuge : eau %d · nourriture %d · bois %d" % [stock.get_amount("eau"), stock.get_amount("nourriture"), stock.get_amount("bois")])
+		lines.append("Tab : changer de survivant · F : l'autre vous suit / attend")
 	_status.text = "\n".join(lines)
 
 
@@ -525,7 +705,8 @@ func _build_hud() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
 	panel.add_child(v)
-	v.add_child(UIStyle.label("PROLOGUE", 12, UIStyle.ACCENT))
+	_chapter_label = UIStyle.label("PROLOGUE", 12, UIStyle.ACCENT)
+	v.add_child(_chapter_label)
 	_objective = UIStyle.label("", 16)
 	_objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_objective.custom_minimum_size = Vector2(356, 0)
@@ -560,10 +741,10 @@ func _build_hud() -> void:
 	_overlay_buttons.add_theme_constant_override("separation", 12)
 	ov.add_child(_overlay_buttons)
 	var b1 := UIStyle.button("Recommencer", 16)
-	b1.pressed.connect(func(): get_tree().paused = false; get_tree().reload_current_scene())
+	b1.pressed.connect(_restart)
 	_overlay_buttons.add_child(b1)
 	var b2 := UIStyle.button("Menu titre", 16)
-	b2.pressed.connect(func(): get_tree().paused = false; get_tree().change_scene_to_file(MENU_SCENE))
+	b2.pressed.connect(_to_menu)
 	_overlay_buttons.add_child(b2)
 	_overlay.visible = false
 	# Pause (Échap)
@@ -575,12 +756,22 @@ func _build_hud() -> void:
 	var pt := UIStyle.label("Pause", 26, UIStyle.ACCENT)
 	pt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pv.add_child(pt)
-	for entry in [["Reprendre", _toggle_pause], ["Recommencer le prologue", func(): get_tree().paused = false; get_tree().reload_current_scene()], ["Menu titre", func(): get_tree().paused = false; get_tree().change_scene_to_file(MENU_SCENE)]]:
+	for entry in [["Reprendre", _toggle_pause], ["Recommencer le prologue", _restart], ["Menu titre", _to_menu]]:
 		var b := UIStyle.button(entry[0], 16)
 		b.custom_minimum_size = Vector2(260, 44)
 		b.pressed.connect(entry[1])
 		pv.add_child(b)
+		if entry[0].begins_with("Recommencer"):
+			_restart_btn = b
 	_pause.visible = false
+	# Carton de titre (début de chapitre), par-dessus le fondu
+	_title = UIStyle.label("", 34, UIStyle.ACCENT)
+	_title.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title.modulate.a = 0.0
+	layer.add_child(_title)
 	var key := PauseKey.new()
 	key.on_toggle = _toggle_pause
 	add_child(key)
@@ -612,9 +803,19 @@ func _show_overlay(title: String, text: String, _buttons: bool) -> void:
 	_overlay.visible = true
 
 
+## Carton « Chapitre 1 — L'abri » : apparaît, reste un moment, s'efface.
+func _show_title(head: String, sub: String) -> void:
+	_title.text = "%s\n%s" % [head.to_upper(), sub]
+	var tw := create_tween()
+	tw.tween_property(_title, "modulate:a", 1.0, 0.6)
+	tw.tween_interval(2.6)
+	tw.tween_property(_title, "modulate:a", 0.0, 0.8)
+
+
 func _toggle_pause() -> void:
 	if _overlay.visible:
 		return
+	_restart_btn.text = "Recommencer le chapitre" if chapter != null else "Recommencer le prologue"
 	_pause.visible = not _pause.visible
 	get_tree().paused = _pause.visible
 

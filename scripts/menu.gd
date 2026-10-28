@@ -34,12 +34,18 @@ func _ready() -> void:
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 24)
 	box.add_child(spacer)
-	_add_button(box, "Histoire", func(): get_tree().change_scene_to_file(STORY_SCENE))
+	_add_button(box, "Histoire", func(): _start_story(0))
+	_add_button(box, "Chapitre 1 — L'abri", func(): _start_story(1))
 	_add_button(box, "Mode test", func(): get_tree().change_scene_to_file(TEST_SCENE))
 	_add_button(box, "Quitter", func(): get_tree().quit())
 	var hint := UIStyle.label("Mode test : la carte de prototypage, toutes les mécaniques et le panneau debug (F1).", 12, UIStyle.TEXT_DIM)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
+
+
+func _start_story(chapter: int) -> void:
+	StoryPrologue.start_chapter = chapter
+	get_tree().change_scene_to_file(STORY_SCENE)
 
 
 func _add_button(parent: Control, text: String, action: Callable) -> void:

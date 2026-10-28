@@ -71,11 +71,19 @@ func _draw() -> void:
 	draw_rect(Rect2(-12, -16 + bob, 6, 10), col)
 
 
-## Bouteille (eau) ou boîte de conserve (nourriture).
+## Bouteille (eau), boîte de conserve (nourriture) ou planche (bois).
 func _draw_consumable(bob: float) -> void:
 	var c: Color = item.color
 	var o := Vector2(0, -12 + bob)
-	if item.resource_type == "eau":
+	if item.resource_type == "bois":
+		# Planche (bois flotté, débris) : une latte posée en biais
+		draw_set_transform(o, -0.35, Vector2.ONE)
+		draw_rect(Rect2(-13, -3.5, 26, 7), c)
+		draw_rect(Rect2(-13, -3.5, 26, 7), c.darkened(0.55), false, 1.5)
+		draw_line(Vector2(-9, 0), Vector2(7, 0), c.darkened(0.3), 1.0)
+		draw_circle(Vector2(9, 0), 1.2, Color(0.3, 0.3, 0.32))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	elif item.resource_type == "eau":
 		draw_rect(Rect2(o.x - 5, o.y - 8, 10, 16), c)
 		draw_rect(Rect2(o.x - 5, o.y - 8, 10, 16), Color(0.15, 0.25, 0.35), false, 1.5)
 		draw_rect(Rect2(o.x - 2.5, o.y - 12, 5, 4), Color(0.25, 0.4, 0.6))

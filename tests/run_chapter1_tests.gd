@@ -1,0 +1,243 @@
+extends SceneTree
+## Tests automatisés du chapitre 1 « L'abri », sans fenêtre :
+##   godot --headless --fixed-fps 60 --path . -s tests/run_chapter1_tests.gd
+## On démarre directement au chapitre 1 (comme depuis le menu titre) et on
+## enchaîne les étapes en téléportant le survivant contrôlé.
+
+var _failures := 0
+var _checks := 0
+var _f := 0
+var _p: StoryPrologue
+var _ch: Chapter1
+var _c: Survivor
+var _q: Array = []       # file d'actions : [frame, Callable]
+var _thirst0 := 0.0
+
+
+func _init() -> void:
+	StoryPrologue.start_chapter = 1
+	_p = load("res://scenes/story.tscn").instantiate()
+	root.add_child(_p)
+
+
+func check(cond: bool, msg: String) -> void:
+	_checks += 1
+	if not cond:
+		_failures += 1
+		print("ÉCHEC : " + msg)
+
+
+func at(frame: int, fn: Callable) -> void:
+	_q.append([frame, fn])
+
+
+func _process(_d: float) -> bool:
+	_f += 1
+	if _f == 2:
+		_setup_checks()
+		_plan()
+	for a in _q.duplicate():
+		if a[0] == _f:
+			a[1].call()
+			_q.erase(a)
+	if _q.is_empty() and _f > 2:
+		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
+		quit(1 if _failures > 0 else 0)
+	return false
+
+
+func _setup_checks() -> void:
+	_ch = _p.chapter
+	check(_ch != null, "on démarre au chapitre 1")
+	check(_ch.step == Chapter1.Step.INTRO, "introduction du chapitre")
+	_c = _p.controlled
+	check(_c == _p.friend, "on dirige le second survivant, comme à la fin du prologue")
+	check(_p.refuge.lit and _p.refuge.show_plot, "refuge allumé, emplacement de la cabane marqué")
+	for s in _p.alive_survivors():
+		check(s.weapon == null, "%s commence sans arme" % s.first_name)
+		check(s.needs_enabled, "faim et soif actives au chapitre 1")
+		check(s.hp_floor == 0, "plus de protection : mort définitive")
+	check(_p.camera.limit_top <= int(BeachMap.NORTH_TOP), "la caméra monte jusqu'au nord de l'île")
+	check(_p.get_tree().get_nodes_in_group("chests").size() == Chapter1.CHESTS.size(), "coffres placés")
+	check(_p.stock.get_amount("bois") == 0, "pas de bois au départ")
+	var planks := 0
+	for n in _p.get_tree().get_nodes_in_group("item_pickups"):
+		if n.item is ConsumableData and n.item.resource_type == "bois":
+			planks += 1
+	for e in Chapter1.CHESTS:
+		for path in e[1]:
+			if path == Chapter1.PLANK:
+				planks += 1
+	check(planks >= Chapter1.WOOD_NEEDED, "assez de planches sur la carte (%d)" % planks)
+	_thirst0 = _c.thirst
+
+
+func _plan() -> void:
+	var f := 7 * 60 + 30
+	at(f, func():
+		check(_ch.step == Chapter1.Step.FIND_WEAPON, "objectif : trouver une arme")
+		check(_p._arrow.target == Chapter1.SLINGSHOT_POS, "la flèche montre l'arme")
+		check(_c.thirst < _thirst0, "la soif monte (%.1f → %.1f)" % [_thirst0, _c.thirst])
+		Mob.harmless = true   # les monstres ne nous dérangent pas pendant le test
+		# On franchit à pied l'ancienne limite nord du prologue
+		_c.global_position = Vector2(-150, BeachMap.TOP + 60)
+		Input.action_press("move_up"))
+	f += 70
+	at(f, func():
+		Input.action_release("move_up")
+		check(_c.global_position.y < BeachMap.TOP - 60, "le nord de l'île est ouvert (y = %.0f)" % _c.global_position.y)
+		_c.global_position = Chapter1.SLINGSHOT_POS)
+	f += 60
+	at(f, func():
+		check(_c.weapon != null and _c.weapon.resource_path == Survivor.SLINGSHOT_PATH, "lance-pierre ramassé à terre et équipé")
+		check(_ch.step == Chapter1.Step.FIRST_FIGHT, "premier combat")
+		check(is_instance_valid(_ch.first_mob), "un rongeur à abattre")
+		_ch.first_mob.take_damage(999.0))
+	f += 30
+	at(f, func():
+		check(_ch.step == Chapter1.Step.SUPPLIES, "objectif : provisions et bois")
+		# La crique : trois planches, puis le coffre (deux bouteilles d'eau)
+		for e in Chapter1.LOOT.slice(0, 3):
+			_c.global_position = e[0]
+			_physics_tick())
+	f += 5
+	at(f, func():
+		check(_c.inventory.size() == 3, "trois planches dans le sac (%d)" % _c.inventory.size())
+		_break_chest(0))
+	f += 80
+	at(f, func():
+		_grab_near(Chapter1.CHESTS[0][0]))
+	f += 10
+	at(f, func():
+		check(_c.inventory.size() == _c.bag_capacity(), "sac plein (%d/%d)" % [_c.inventory.size(), _c.bag_capacity()])
+		var left := _pickups_near(Chapter1.CHESTS[0][0])
+		check(left.size() == 1, "sac plein : un objet reste au sol (%d)" % left.size())
+		_c.global_position = _p.REFUGE_POS + Vector2(6, 4))
+	f += 10
+	at(f, func():
+		check(_p.stock.get_amount("bois") == 3, "trois planches au stock (%d)" % _p.stock.get_amount("bois"))
+		check(_c.inventory.is_empty(), "sac vidé au feu")
+		_grab_near(Chapter1.CHESTS[0][0]))
+	f += 10
+	# L'épave : quatre planches, puis le coffre (sarbacane + conserve)
+	at(f, func():
+		_c.global_position = _p.REFUGE_POS + Vector2(6, 4))
+	f += 10
+	at(f, func():
+		for e in Chapter1.LOOT.slice(3, 7):
+			_c.global_position = e[0]
+			_physics_tick())
+	f += 5
+	at(f, func():
+		check(_c.inventory.size() == 4, "quatre planches de l'épave (%d)" % _c.inventory.size())
+		_c.global_position = _p.REFUGE_POS + Vector2(6, 4))
+	f += 10
+	at(f, func():
+		check(_p.stock.get_amount("bois") == 7, "sept planches au stock (%d)" % _p.stock.get_amount("bois"))
+		check(_ch.step == Chapter1.Step.SUPPLIES, "pas encore assez de bois")
+		_break_chest(1))
+	f += 80
+	at(f, func():
+		_grab_near(Chapter1.CHESTS[1][0]))
+	f += 10
+	at(f, func():
+		check(_c.weapon != null and _c.weapon.resource_path == Chapter1.BLOWPIPE, "sarbacane trouvée et équipée")
+		var kept := false
+		for it in _c.inventory:
+			if it is WeaponData and it.resource_path == Survivor.SLINGSHOT_PATH:
+				kept = true
+		check(kept, "le lance-pierre part dans le sac au lieu de disparaître")
+		_c.global_position = _p.REFUGE_POS + Vector2(6, 4))
+	f += 70
+	at(f, func():
+		var o := _p.other_of(_c)
+		check(o.weapon != null, "l'arme rapportée au feu va au survivant resté au camp")
+		check(_ch.food_brought() == 1, "une conserve rapportée (%d)" % _ch.food_brought())
+		# Le bosquet : deux conserves, le coffre (planches, conserve, eau)
+		for e in Chapter1.LOOT.slice(7, 9):
+			_c.global_position = e[0]
+			_physics_tick()
+		check(_c.inventory.size() == 2, "deux conserves du bosquet (%d)" % _c.inventory.size())
+		_c.global_position = _p.REFUGE_POS + Vector2(6, 4))
+	f += 10
+	at(f, func():
+		_break_chest(2))
+	f += 80
+	at(f, func():
+		_grab_near(Chapter1.CHESTS[2][0]))
+	f += 10
+	at(f, func():
+		_c.global_position = _p.REFUGE_POS + Vector2(6, 4))
+	f += 10
+	at(f, func():
+		_c.global_position = _p.REFUGE_POS + Vector2(6, 4)
+		check(_p.stock.get_amount("bois") >= Chapter1.WOOD_NEEDED, "assez de bois au stock (%d)" % _p.stock.get_amount("bois"))
+		check(_ch.food_brought() >= Chapter1.FOOD_NEEDED, "assez de nourriture rapportée (%d)" % _ch.food_brought()))
+	f += 5
+	at(f, func():
+		check(_ch.step == Chapter1.Step.BUILD, "objectif : construire la cabane")
+		check(_p._arrow.target == _ch.plot_position(), "la flèche montre les piquets")
+		# Escouade de deux : F, puis Tab
+		var o := _p.other_of(_c)
+		check(_p.toggle_follow() and o.following, "F : l'autre nous suit")
+		check(_p.switch_survivor() and _p.controlled == o, "Tab : on change de survivant")
+		check(_c.following and not o.following, "l'escouade garde sa forme : l'ancien suit le nouveau")
+		_c = _p.controlled
+		check(not _ch.try_build(), "trop loin des piquets pour construire")
+		_c.global_position = _ch.plot_position() + Vector2(60, 40))
+	f += 5
+	at(f, func():
+		var ev := InputEventKey.new()
+		ev.physical_keycode = KEY_E
+		ev.pressed = true
+		Input.parse_input_event(ev))
+	f += 5
+	at(f, func():
+		check(_ch.step == Chapter1.Step.BUILDING and is_instance_valid(_ch.cabin), "E : le chantier de la cabane démarre")
+		check(_p.stock.get_amount("bois") < Chapter1.WOOD_NEEDED, "la cabane a coûté %d bois" % Chapter1.WOOD_NEEDED)
+		check(_p.refuge.has_cabin, "les piquets laissent place au chantier")
+		# Mort définitive pendant le chapitre : on garde la main sur l'autre
+		var o := _p.other_of(_c)
+		o.take_damage(9999.0))
+	f += 5
+	at(f, func():
+		check(_p.alive_survivors().size() == 1, "un survivant de moins")
+		check(_p.get_tree().get_nodes_in_group("graves").size() == 1, "une tombe")
+		check(_p.controlled == _c and _ch.step == Chapter1.Step.BUILDING, "le chapitre continue avec le survivant restant")
+		_ch.cabin.finish())
+	f += 10
+	at(f, func():
+		check(_ch.step == Chapter1.Step.DONE, "cabane debout : fin du chapitre"))
+	f += 7 * 60
+	at(f, func():
+		check(_p._overlay.visible and _p._overlay_title.text == "Fin du chapitre 1", "écran de fin du chapitre 1")
+		Mob.harmless = false)
+
+
+## Le ramassage se fait en physique : on laisse passer une image.
+func _physics_tick() -> void:
+	for n in _p.get_tree().get_nodes_in_group("item_pickups"):
+		if n.global_position.distance_to(_c.global_position) < 14.0 and n._t >= ItemPickup.PICKUP_DELAY:
+			for body in [_c]:
+				if body.try_pick_up(n.item):
+					n.queue_free()
+
+
+func _break_chest(i: int) -> void:
+	for c in _p.get_tree().get_nodes_in_group("chests"):
+		if c.global_position.distance_to(Chapter1.CHESTS[i][0]) < 2.0:
+			c.take_damage(999.0)
+
+
+func _pickups_near(p: Vector2) -> Array:
+	var out := []
+	for n in _p.get_tree().get_nodes_in_group("item_pickups"):
+		if not n.is_queued_for_deletion() and n.global_position.distance_to(p) < 80.0:
+			out.append(n)
+	return out
+
+
+func _grab_near(p: Vector2) -> void:
+	for n in _pickups_near(p):
+		_c.global_position = n.global_position
+		_physics_tick()

@@ -112,6 +112,9 @@ var needs_enabled := true
 var camp_regen := true
 ## Mode histoire : commence sans arme (pas de lance-pierre par défaut).
 var unarmed_start := false
+## Mode histoire : l'arme remplacée au ramassage (le lance-pierre) part dans
+## le sac au lieu de disparaître, pour la rapporter au camp.
+var keep_replaced_weapon := false
 ## Mode histoire : PV minimum (> 0 = ne peut pas mourir, ex. l'ami du prologue).
 var hp_floor := 0
 
@@ -212,6 +215,8 @@ func has_only_slingshot() -> bool:
 ## (l'objet reste alors au sol).
 func try_pick_up(item: Resource) -> bool:
 	if item is WeaponData and has_only_slingshot():
+		if keep_replaced_weapon and weapon != null and inventory.size() < bag_capacity():
+			inventory.append(weapon)
 		equip(item)
 		_say("%s, à moi !" % LootTable.item_name(item), 2.0)
 		return true
@@ -547,7 +552,10 @@ func _process_autonomous(delta: float) -> void:
 	if _going_to_heal():
 		# Gravement blessé : il rentre au camp se soigner, puis reprend sa tâche.
 		# (Il garde son chargement et le dépose en passant au feu.)
-		if in_camp():
+		# Au camp, il va quand même boire et manger au stock s'il en a besoin.
+		if in_camp() and _going_to_refill():
+			_move_towards(village_center + _deposit_offset, move_speed() * 0.8)
+		elif in_camp():
 			_process_wander(delta)
 		else:
 			_move_towards(village_center + _deposit_offset, move_speed())

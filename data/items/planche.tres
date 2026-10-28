@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ConsumableData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/consumable_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+item_name = "Planche"
+resource_type = "bois"
+amount = 1
+color = Color(0.62, 0.44, 0.26, 1)

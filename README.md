@@ -9,7 +9,7 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 1. Installer [Godot 4.5](https://godotengine.org/download) (version standard, pas .NET).
 2. Ouvrir Godot → **Importer** → choisir le fichier `project.godot` de ce dossier.
 3. Appuyer sur **F5** (ou le bouton ▶ en haut à droite).
-4. Menu titre : **Histoire** (le prologue) ou **Mode test** (la carte de prototypage avec toutes les mécaniques et le panneau debug F1).
+4. Menu titre : **Histoire** (le prologue, puis le chapitre 1), **Chapitre 1 — L'abri** (départ direct au chapitre 1) ou **Mode test** (la carte de prototypage avec toutes les mécaniques et le panneau debug F1).
 
 ## Commandes
 
@@ -281,6 +281,31 @@ Fichiers : `assets/survivors/<coiffure>_shade.png` et `<coiffure>_mask.png`.
   Le modèle 3D est dans `tools/survivor_model.gd`.
 - **Remplacer par des rendus définitifs** : garder la même disposition et le même point des pieds. Une planche déjà en couleurs fonctionne aussi : il suffit de supprimer le `_mask.png` correspondant (plus de teinte).
 - Sans planche pour une coiffure, le survivant est dessiné à l'ancienne (2D).
+## Ajouts v0.30 : chapitre 1 « L'abri »
+
+Le mode histoire continue après le prologue, **sur la même carte agrandie vers le nord** (le bord nord du prologue s'ouvre). Le menu titre permet aussi d'y aller directement.
+
+1. Carton « Chapitre 1 — L'abri ». Les deux survivants sont au refuge, **sans arme**. **Faim et soif reprennent** ; **mort définitive** (plus de protection pour l'ami). L'un reste au camp : il a planté des **piquets** pour la future cabane.
+2. **Trouver une arme** : un lance-pierre traîne à terre au nord du refuge, dans une valise éventrée. On le ramasse en passant dessus (pas de corps à corps).
+3. **Premier combat** : un rongeur à abattre.
+4. **Exploration libre** de trois coins, gardés par des monstres postés :
+   - **la crique** (ouest) : bois flotté, un coffre avec de l'eau ;
+   - **l'épave** (nord-est) : un second morceau de l'appareil, des planches, un coffre avec une **sarbacane** et une conserve ;
+   - **le bosquet** (nord) : monstres de niveau 2, conserves, un coffre bien garni.
+   On remplit son **sac** (4 objets au niveau 1) et on rapporte au feu. Objectif : **8 bois au stock** et **3 rations de nourriture rapportées**. Après 45 s sans rien ramasser, la flèche montre le loot le plus proche (ou le feu si le sac est plein).
+5. **Construire la cabane** : aux piquets, **E** ou clic (8 bois). Le chantier se monte tout seul (14 s).
+6. La cabane est debout : **fin du chapitre 1**.
+
+Autres ajouts :
+- Nouvel objet : **Planche** (`data/items/planche.tres`), une unité de **bois** à looter, qui rejoint le stock au feu.
+- Une **arme rapportée au feu** va au survivant du camp qui n'en a pas. En mode histoire, l'arme remplacée au ramassage (le lance-pierre) part dans le sac au lieu de disparaître.
+- **Tab** change de survivant quand on veut ; **F** : l'autre survivant nous suit, ou retourne attendre au refuge. Si l'un meurt, on continue avec l'autre (une tombe reste) ; s'ils meurent tous les deux, « Recommencer » relance le chapitre.
+- Le panneau en haut à gauche affiche soif, faim et le stock du refuge.
+
+Corrections :
+- Prologue : le premier survivant pouvait boire au feu l'eau rapportée pour l'ami (test du prologue qui échouait de temps en temps).
+- Un survivant blessé qui se soigne au camp va quand même boire et manger au stock.
+
 ## Structure
 
 ```
@@ -328,6 +353,8 @@ tests/run_story_tests.gd  tests automatisés du prologue
 scripts/menu.gd           menu titre
 scripts/input_setup.gd    touches du jeu (partagées)
 scripts/story/            mode histoire : prologue (déroulé), carte de la plage, sol, débris, palmiers
+scripts/story/chapter1.gd chapitre 1 « L'abri » : loot, monstres, cabane (enchaîne sur le prologue)
+scripts/story/cabin.gd    la cabane du refuge (construction 2 × 2 tuiles)
 ```
 
 ## Graphismes
@@ -340,4 +367,5 @@ Les survivants utilisent des planches de sprites pré-rendues en 3D (voir « Pla
 godot --headless --path . --import
 godot --headless --fixed-fps 60 --path . -s tests/run_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_story_tests.gd
+godot --headless --fixed-fps 60 --path . -s tests/run_chapter1_tests.gd
 ```

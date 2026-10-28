@@ -125,7 +125,9 @@ func _process(_d: float) -> bool:
 		_done_frame = _f
 	if _f == 960 + 3000:
 		check(_done_frame > 0, "la première eau termine le prologue")
-		check(_p._overlay.visible and _p._overlay_title.text == "Fin du prologue", "écran de fin du prologue")
+		check(_p.chapter != null and _p.chapter.step != Chapter1.Step.DONE, "le chapitre 1 enchaîne")
+		check(not _p._overlay.visible, "pas d'écran de fin : on continue")
+		check(_p._chapter_label.text.begins_with("CHAPITRE 1"), "titre du chapitre dans le panneau")
 		print("\n%d vérifications, %d échec(s)" % [_checks, _failures])
 		quit(1 if _failures > 0 else 0)
 	return false
