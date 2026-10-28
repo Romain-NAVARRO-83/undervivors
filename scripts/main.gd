@@ -69,6 +69,8 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	Nav.clear()  # nouvelle partie : aucune construction
+	Survivor.shelter = null
+	Survivor.night = false
 	Terrain.enabled = true
 	var ground := IsoGround.new()
 	ground.z_index = -10

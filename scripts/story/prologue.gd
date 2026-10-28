@@ -66,6 +66,10 @@ var _rng := RandomNumberGenerator.new()
 var _follow_dir := Vector2.LEFT
 var _arrow: ObjectiveArrow
 var chapter: Chapter1          # chapitre en cours après le prologue (sinon null)
+var day_night: DayNight
+var _lamp: PointLight2D        # petite lumière autour du survivant dirigé, la nuit
+var _clock: Label
+var _continue_btn: Button
 var _north_bound: CollisionShape2D
 var _title: Label
 
@@ -95,6 +99,15 @@ func _ready() -> void:
 	Survivor.alert = false
 	Survivor.squad_focus = null
 	BuildManager.placing = false
+	Survivor.shelter = null
+
+	# Cycle jour/nuit : le prologue commence le matin.
+	day_night = DayNight.new()
+	day_night.name = "JourNuit"
+	day_night.hour = 8.0 if start_chapter == 0 else 9.0
+	add_child(day_night)
+	day_night.night_started.connect(_on_night)
+	day_night.day_started.connect(_on_day)
 
 	add_child(StoryGround.new())
 	world = Node2D.new()
@@ -129,6 +142,16 @@ func _ready() -> void:
 	_arrow = ObjectiveArrow.new()
 	_arrow.follow = controlled
 	world.add_child(_arrow)
+
+	# Lumières de nuit : le feu du refuge et une lueur autour du survivant dirigé
+	var fire_light := day_night.make_light(300.0, Color(1.0, 0.62, 0.3), 0.8)
+	fire_light.scale = Vector2(1.0, 0.6)
+	fire_light.position = Vector2(0, -6)
+	refuge.add_child(fire_light)
+	refuge.light = fire_light
+	_lamp = day_night.make_light(190.0, Color(0.85, 0.85, 1.0), 0.75)
+	_lamp.scale = Vector2(1.0, 0.65)
+	add_child(_lamp)
 
 	_build_hud()
 	survivor.died.connect(_on_any_died)
@@ -348,6 +371,8 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(controlled):
 		return
 	camera.position = controlled.global_position
+	_lamp.global_position = controlled.global_position + Vector2(0, -8)
+	_clock.text = day_night.clock_text()
 	_update_status()
 	_update_follow()
 	if step == Step.DONE:
@@ -627,11 +652,38 @@ func _skip_prologue() -> void:
 
 
 ## Fin d'un chapitre : écran de fin (Recommencer / Menu titre).
-func end_chapter(title: String, text: String) -> void:
+func end_chapter(title: String, text: String, delay := 3.5) -> void:
 	var tw := create_tween()
-	tw.tween_interval(3.5)
+	tw.tween_interval(delay)
 	tw.tween_property(_fade, "color:a", 0.85, 1.5)
 	tw.tween_callback(func(): _show_overlay(title, text, true))
+
+
+## « Continuer » après la fin d'un chapitre : on reste sur l'île, en libre.
+func _continue_free_play() -> void:
+	_overlay.visible = false
+	create_tween().tween_property(_fade, "color:a", 0.0, 1.0)
+	_set_objective("Exploration libre. La suite au chapitre 2.")
+
+
+# --- Nuit -------------------------------------------------------------------
+
+func _on_night() -> void:
+	if step != Step.DONE and chapter == null:
+		return   # (le prologue se joue de jour)
+	var o := other_of(controlled)
+	if o == null or o.following:
+		return
+	if Survivor._shelter_ready():
+		o._say("La nuit tombe. Je rentre à l'abri.", 2.8)
+	else:
+		o._say("Il fait nuit… Je reste près du feu.", 2.8)
+
+
+func _on_day() -> void:
+	var o := other_of(controlled)
+	if o:
+		o._say("Encore une journée. Personne n'est venu nous chercher.", 3.2)
 
 
 ## Mort définitive. Au chapitre 1, si l'autre survivant vit encore, on le
@@ -710,6 +762,8 @@ func _build_hud() -> void:
 	_objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_objective.custom_minimum_size = Vector2(356, 0)
 	v.add_child(_objective)
+	_clock = UIStyle.label("", 12, UIStyle.ACCENT)
+	v.add_child(_clock)
 	_status = UIStyle.label("", 12, UIStyle.TEXT_DIM)
 	v.add_child(_status)
 	var menu_btn := UIStyle.button("Menu  [Échap]", 13)
@@ -745,6 +799,9 @@ func _build_hud() -> void:
 	var b2 := UIStyle.button("Menu titre", 16)
 	b2.pressed.connect(_to_menu)
 	_overlay_buttons.add_child(b2)
+	_continue_btn = UIStyle.button("Continuer", 16)
+	_continue_btn.pressed.connect(_continue_free_play)
+	_overlay_buttons.add_child(_continue_btn)
 	_overlay.visible = false
 	# Pause (Échap)
 	_pause = _make_center_panel(layer)
@@ -797,6 +854,8 @@ func _set_objective(text: String) -> void:
 
 
 func _show_overlay(title: String, text: String, _buttons: bool) -> void:
+	# « Continuer » seulement à la fin d'un chapitre (pas après une mort)
+	_continue_btn.visible = alive_survivors().size() > 0 and title.begins_with("Fin")
 	_overlay_title.text = title
 	_overlay_text.text = text
 	_overlay.visible = true

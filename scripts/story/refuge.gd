@@ -12,6 +12,9 @@ var lit := false   # le feu s'allume quand on arrive
 var show_plot := false
 ## La cabane remplace l'appentis de branches.
 var has_cabin := false
+## Lumière du feu la nuit (créée par le mode histoire), éteinte tant que le
+## feu ne l'est pas.
+var light: PointLight2D
 
 
 func _ready() -> void:
@@ -20,6 +23,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if light:
+		light.visible = lit
 	queue_redraw()
 
 

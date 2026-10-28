@@ -392,10 +392,29 @@ func try_build() -> bool:
 func _on_cabin_built(_b: Building) -> void:
 	step = Step.DONE
 	story._set_objective("La cabane est debout.")
+	Survivor.shelter = cabin
+	var dn: DayNight = story.day_night
+	var win := dn.make_light(130.0, Color(1.0, 0.75, 0.4), 1.0)
+	win.scale = Vector2(1.0, 0.6)
+	win.position = Vector2(30, -10)
+	cabin.add_child(win)
 	var speaker: Survivor = story.controlled if is_instance_valid(story.controlled) else story.other_of(null)
 	if speaker:
 		speaker._say("Un toit. Il fuit sûrement, mais c'est NOTRE toit.", 3.5)
-	story.end_chapter("Fin du chapitre 1", "Un abri, des provisions, de quoi se défendre.\nEt toujours aucun souvenir.\nÀ suivre…")
+	# La nuit tombe sur la première cabane : l'autre survivant va s'y coucher.
+	var o: Survivor = story.other_of(story.controlled)
+	if o:
+		o.following = false
+	var delay := 3.5
+	if not dn.is_night():
+		var target := DayNight.DUSK + 0.4
+		dn.speed = 0.0
+		var tw := story.create_tween()
+		tw.tween_interval(2.5)
+		tw.tween_method(dn.set_hour, dn.hour, target, 5.0)
+		tw.tween_callback(func(): dn.speed = 1.0)
+		delay = 11.0
+	story.end_chapter("Fin du chapitre 1", "Un abri, des provisions, de quoi se défendre.\nEt toujours aucun souvenir.\nÀ suivre…", delay)
 
 
 func handle_input(event: InputEvent) -> bool:

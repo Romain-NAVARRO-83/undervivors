@@ -331,6 +331,14 @@ Nouvelle entrée **Champ de tir** dans le menu titre : une petite carte pour ess
 
 Correction : une balle encore en vol quand son tireur meurt ne provoque plus d'erreur (Godot 4.7).
 
+## Ajouts v0.34 : cycle jour/nuit (mode histoire)
+
+- **Cycle jour/nuit** (`scripts/day_night.gd`) : une journée dure 8 min réelles, le jour (6 h → 21 h) 5 min 30, la nuit (21 h → 6 h) 2 min 30. Le monde se teinte au crépuscule puis s'assombrit ; le feu du refuge, la fenêtre de la cabane et une petite lueur autour du survivant dirigé éclairent la nuit. Horloge dans le panneau (« ☀ Jour 1 · 14 h 30 »). Le prologue commence à 8 h, le chapitre 1 à 9 h. Réglages en tête du script (`DAY_SECONDS`, `NIGHT_SECONDS`, `DAWN`, `DUSK`).
+- **La nuit, les survivants non dirigés rentrent dans la cabane** : ils marchent jusqu'à la porte et disparaissent à l'intérieur (hors d'atteinte des monstres, ils s'y soignent), puis ressortent au lever du jour. Avant la cabane, ils se serrent autour du feu.
+- Exceptions : un survivant qui **nous suit** (F) reste avec nous ; **Tab** sur un survivant qui dort le fait ressortir par la porte ; les servants de tourelle restent à leur poste.
+- **Fin du chapitre 1** : la cabane terminée, la nuit tombe et l'autre survivant va s'y coucher. Nouveau bouton **Continuer** sur l'écran de fin : on reste sur l'île en exploration libre.
+- Le mode test et le champ de tir n'ont pas de nuit.
+
 ## Structure
 
 ```
@@ -340,6 +348,7 @@ scripts/survivor.gd       survivant : contrôle, errance, tir autonome, stats
 scripts/name_generator.gd générateur de noms par syllabes multi-pays
 scripts/weapon_data.gd    ressource « arme » (dégâts, cadence, dispersion, élément…)
 scripts/projectile.gd     projectile
+scripts/day_night.gd      cycle jour/nuit du mode histoire (teinte, lumières, heure)
 scripts/hit_effect.gd     animation d'impact des tirs
 scripts/wave_manager.gd   vagues de monstres
 scripts/mob_spawner.gd    générateur de bots
@@ -396,4 +405,5 @@ godot --headless --fixed-fps 60 --path . -s tests/run_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_story_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_chapter1_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_range_tests.gd
+godot --headless --fixed-fps 60 --path . -s tests/run_daynight_tests.gd
 ```

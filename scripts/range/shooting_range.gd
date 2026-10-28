@@ -50,6 +50,8 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	Terrain.enabled = false
 	Nav.clear()
+	Survivor.shelter = null
+	Survivor.night = false
 	Mob.harmless = true
 	Survivor.alert = false
 	Survivor.squad_focus = null

@@ -470,7 +470,7 @@ func _nearest_survivor() -> Node2D:
 	var best_d := aggro_range
 	var ranged := is_ranged()
 	for s in get_tree().get_nodes_in_group("survivors"):
-		if not s.is_alive():
+		if not s.is_alive() or s.sheltered:
 			continue
 		if s.manning and not ranged:
 			continue  # servant perché sur sa tourelle : hors d'atteinte au corps à corps

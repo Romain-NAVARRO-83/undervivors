@@ -251,7 +251,7 @@ func _plan() -> void:
 	f += 10
 	at(f, func():
 		check(_ch.step == Chapter1.Step.DONE, "cabane debout : fin du chapitre"))
-	f += 7 * 60
+	f += 14 * 60
 	at(f, func():
 		check(_p._overlay.visible and _p._overlay_title.text == "Fin du chapitre 1", "écran de fin du chapitre 1")
 		Mob.harmless = false)

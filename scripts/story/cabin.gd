@@ -39,6 +39,15 @@ func contains(world_pos: Vector2) -> bool:
 	return absf(d.x) / CHW + absf(d.y + 30.0) / (CHH + 30.0) <= 1.0
 
 
+## Devant la porte (face sud-ouest), juste hors de la zone de collision :
+## c'est là que les survivants entrent et ressortent.
+const DOOR_OFFSET := Vector2(-36, 28)
+
+
+func door_position() -> Vector2:
+	return global_position + DOOR_OFFSET
+
+
 func block_height() -> float:
 	return WALL_H + ROOF_H
 

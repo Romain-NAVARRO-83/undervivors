@@ -66,6 +66,13 @@ static var alert := false
 ## Cible commune de l'escouade : quand le leader tire sur un coffre, les
 ## suiveurs tirent dessus aussi jusqu'à ce qu'il casse (sauf monstre au contact).
 static var squad_focus: Node2D = null
+## Mode histoire : vrai la nuit (réglé par DayNight). Les survivants libres
+## rentrent alors à l'abri, ou se serrent autour du feu s'il n'y en a pas.
+static var night := false
+## Abri du camp (la cabane), qui offre door_position() et is_built.
+static var shelter: Node2D = null
+## Vrai quand le survivant dort dans l'abri (invisible, hors d'atteinte).
+var sheltered := false
 const FOCUS_DEFEND_RANGE := 120.0
 var _alert_offset := Vector2.ZERO
 ## Escouade (GDD 6) : membre de l'escouade enregistrée, et suivi du leader.
@@ -366,6 +373,13 @@ func full_name() -> String:
 
 
 func _physics_process(delta: float) -> void:
+	if sheltered:
+		# À l'abri : il ressort au lever du jour, ou si on le reprend en main.
+		_update_health(delta)
+		if not night or selected or following or not _shelter_ready():
+			leave_shelter()
+		else:
+			return
 	_cooldown = max(_cooldown - delta, 0.0)
 	_update_needs(delta)
 	_update_health(delta)
@@ -546,6 +560,50 @@ func _is_squad_mode() -> bool:
 	return main != null and main.get("squad_mode") == true
 
 
+# --- Nuit : rentrer à l'abri ------------------------------------------------
+
+static func _shelter_ready() -> bool:
+	return shelter != null and is_instance_valid(shelter) and shelter.get("is_built") == true \
+		and shelter.get("is_destroyed") != true
+
+
+## La nuit : direction l'abri ; sans abri, on reste serré autour du feu.
+func _process_night(delta: float) -> void:
+	if _shelter_ready():
+		var door: Vector2 = shelter.door_position()
+		if _move_towards(door, move_speed()):
+			enter_shelter()
+		return
+	if global_position.distance_to(village_center) > 70.0:
+		_move_towards(village_center + _deposit_offset, move_speed())
+	else:
+		_process_wander(delta)
+
+
+func enter_shelter() -> void:
+	if sheltered or not _shelter_ready():
+		return
+	sheltered = true
+	velocity = Vector2.ZERO
+	visible = false
+	remove_from_group("survivors")   # hors d'atteinte des monstres
+	collision_layer = 0
+	collision_mask = 0
+
+
+func leave_shelter() -> void:
+	if not sheltered:
+		return
+	sheltered = false
+	if _shelter_ready():
+		global_position = shelter.door_position()
+	visible = true
+	add_to_group("survivors")
+	collision_layer = 1
+	collision_mask = 2 | 4 | Building.LAYER
+	_pick_wander_target()
+
+
 func _process_autonomous(delta: float) -> void:
 	if post != null and not is_instance_valid(post):
 		post = null
@@ -555,6 +613,10 @@ func _process_autonomous(delta: float) -> void:
 		return
 	if alert:
 		_process_alert()
+		_autonomous_shooting()
+		return
+	if night and not _going_to_refill():
+		_process_night(delta)
 		_autonomous_shooting()
 		return
 	if _going_to_heal():
