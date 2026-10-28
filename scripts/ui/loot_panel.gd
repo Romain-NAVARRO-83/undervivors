@@ -221,4 +221,6 @@ func _weapon_stats(w: WeaponData) -> String:
 		w.damage, w.bullets_per_shot, w.fire_rate, w.spread_deg, w.max_range]
 	if w.element != WeaponData.Element.AUCUN:
 		t += " · %s +%.0f" % [WeaponData.element_name(w.element), w.element_damage]
+	if w.recoil > 0.0:
+		t += " · recul %.0f" % w.recoil
 	return t + "  ·  ≈ %.0f dégâts/s" % w.dps()

@@ -77,6 +77,24 @@ func _setup_checks() -> void:
 
 
 func _plan() -> void:
+	# Recul des armes : aucun pour le lance-pierre, net pour le fusil à pompe
+	var spot: Vector2 = _p.REFUGE_POS + Vector2(260, -40)
+	var res := {}
+	for w in [["slingshot", 0.0], ["shotgun", 20.0], ["pistol", 6.0]]:
+		var start := 20 + res.size() * 40
+		res[w[0]] = Vector2.ZERO
+		at(start, func():
+			_c.weapon = load("res://data/weapons/%s.tres" % w[0])
+			_c.global_position = spot
+			_c._cooldown = 0.0
+			_c.try_shoot(Vector2.RIGHT))
+		at(start + 30, func():
+			var moved: float = spot.x - _c.global_position.x
+			if w[1] == 0.0:
+				check(absf(moved) < 1.0, "%s : pas de recul (%.1f px)" % [w[0], moved])
+			else:
+				check(moved > w[1] * 0.6 and moved < w[1] * 2.0, "%s : recul vers l'arrière (%.1f px)" % [w[0], moved])
+			_c.weapon = null)
 	var f := 7 * 60 + 30
 	at(f, func():
 		check(_ch.step == Chapter1.Step.FIND_WEAPON, "objectif : trouver une arme")

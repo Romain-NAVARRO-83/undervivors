@@ -140,6 +140,9 @@ var _body_color := Color(0.3, 0.6, 0.9)
 var _sprite: SurvivorSprite
 var _overlay: Overlay
 var _facing := Vector2(0, 1)
+## Recul de l'arme : poussée vers l'arrière qui s'amortit (px/s).
+var _recoil_push := Vector2.ZERO
+const RECOIL_DAMPING := 18.0      # amortissement (1/s) : distance ≈ vitesse / amortissement
 
 
 func _ready() -> void:
@@ -374,6 +377,11 @@ func _physics_process(delta: float) -> void:
 		_process_follow()
 	else:
 		_process_autonomous(delta)
+	if _recoil_push.length() > 1.0:
+		velocity += _recoil_push
+		_recoil_push *= exp(-RECOIL_DAMPING * delta)
+	else:
+		_recoil_push = Vector2.ZERO
 	move_and_slide()
 	_animate_sprite(delta)
 	queue_redraw()
@@ -759,6 +767,22 @@ func try_shoot(dir: Vector2) -> void:
 		p.shooter = self
 		p.global_position = global_position + dir * 12.0 + Vector2(0, -10)
 		world.add_child(p)
+	_apply_recoil(dir)
+
+
+## Recul (GDD 7) : le tireur est repoussé en arrière de sa visée, d'environ
+## `weapon.recoil` px ; la caméra du survivant dirigé tressaute.
+func _apply_recoil(dir: Vector2) -> void:
+	if weapon == null or weapon.recoil <= 0.0 or manning:
+		return   # perché sur une tourelle : il ne bouge pas
+	_recoil_push -= dir * weapon.recoil * RECOIL_DAMPING
+	if selected:
+		var cam := get_viewport().get_camera_2d()
+		if cam:
+			var kick := -dir * minf(weapon.recoil * 0.35, 8.0)
+			cam.offset = kick
+			var tw := cam.create_tween()
+			tw.tween_property(cam, "offset", Vector2.ZERO, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func equip(new_weapon: WeaponData) -> void:

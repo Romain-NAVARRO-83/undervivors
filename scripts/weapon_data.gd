@@ -20,6 +20,10 @@ enum Element { AUCUN, FEU, GLACE, ELECTRIQUE, POISON }
 ## Dégâts élémentaires ajoutés à chaque projectile.
 @export var element_damage: float = 0.0
 @export var projectile_color: Color = Color(0.85, 0.8, 0.7)
+## Recul : distance (px) dont le tireur est repoussé à chaque tir, en arrière
+## de sa visée ; secoue aussi la caméra du survivant dirigé. 0 = aucun recul
+## (lance-pierre, sarbacane).
+@export_range(0.0, 60.0, 0.5) var recoil: float = 0.0
 
 
 ## Dégâts par seconde théoriques (tous les projectiles touchent), pour comparer.

@@ -14,3 +14,4 @@ max_range = 260.0
 element = 1
 element_damage = 2.0
 projectile_color = Color(1, 0.55, 0.2, 1)
+recoil = 26.0

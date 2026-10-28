@@ -312,6 +312,12 @@ Corrections :
 - **Animation d'impact** (`scripts/hit_effect.gd`) : éclair blanc, onde qui s'élargit et éclats projetés vers l'avant du tir, aux couleurs de la balle. Variantes : échardes sur un coffre ou une construction, poussière sur un rocher ou un arbre.
 - **Le monstre touché s'écrase** puis reprend sa forme, en plus du flash blanc.
 
+## Ajouts v0.32 : recul des armes
+
+- Nouvelle stat d'arme **Recul** (`recoil` dans les `.tres`, réglable dans l'inspecteur) : à chaque tir, le tireur est repoussé en arrière de sa visée d'environ ce nombre de pixels, et la caméra du survivant dirigé tressaute.
+- Valeurs de départ : lance-pierre **0** (pas de recul), sarbacane 0, taser 4, pistolet 10, fusil-harpon 16, fusil à pompe 26.
+- Un servant perché sur une tourelle ne bouge pas. Le recul s'affiche dans le stock d'objets.
+
 ## Structure
 
 ```
