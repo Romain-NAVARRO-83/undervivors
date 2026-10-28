@@ -68,7 +68,11 @@ var _arrow: ObjectiveArrow
 var chapter: Chapter1          # chapitre en cours après le prologue (sinon null)
 var day_night: DayNight
 var _lamp: PointLight2D        # petite lumière autour du survivant dirigé, la nuit
-var _clock: Label
+var _dial: DayDial
+var _card: SurvivorCard
+## Accélération du temps quand aucun survivant n'est dirigé (jusqu'à l'aube).
+const FAST_TIME := 8.0
+const FREE_CAM_SPEED := 420.0
 var _continue_btn: Button
 var _north_bound: CollisionShape2D
 var _title: Label
@@ -185,11 +189,33 @@ func _make_survivor(pos: Vector2) -> Survivor:
 func _set_controlled(s: Survivor) -> void:
 	if is_instance_valid(controlled):
 		controlled.selected = false
+	var was_free := not is_instance_valid(controlled)
 	controlled = s
-	s.selected = true
-	s.following = false
 	if _arrow:
 		_arrow.follow = s
+	if _card:
+		_card.survivor = s
+	if s == null:
+		return
+	s.selected = true
+	s.following = false
+	if was_free and day_night and day_night.speed > 1.0:
+		day_night.speed = 1.0   # on reprend la main : le temps reprend son cours
+
+
+## Chapitre 1 : Espace — on lâche le survivant dirigé (il redevient libre et
+## suit la vie du camp). Sans survivant dirigé, le temps file jusqu'à l'aube.
+func release_control() -> bool:
+	if chapter == null or not is_instance_valid(controlled):
+		return false
+	var s := controlled
+	var f := other_of(s)
+	if f and f.following:
+		f.following = false
+	_set_controlled(null)
+	s._pick_wander_target()
+	day_night.speed = FAST_TIME
+	return true
 
 
 # --- Décor et monde ---------------------------------------------------------
@@ -369,10 +395,18 @@ func _place_places() -> void:
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(controlled):
+		# Personne n'est dirigé : caméra libre (ZQSD / flèches).
+		controlled = null
+		_lamp.visible = false
+		var dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		camera.position += dir * FREE_CAM_SPEED * delta
+		camera.position.x = clampf(camera.position.x, camera.limit_left, camera.limit_right)
+		camera.position.y = clampf(camera.position.y, camera.limit_top, camera.limit_bottom)
+		_update_status()
 		return
 	camera.position = controlled.global_position
+	_lamp.visible = true
 	_lamp.global_position = controlled.global_position + Vector2(0, -8)
-	_clock.text = day_night.clock_text()
 	_update_status()
 	_update_follow()
 	if step == Step.DONE:
@@ -502,6 +536,8 @@ func _update_ambush() -> void:
 ## L'autre survivant suit celui qu'on dirige, un pas derrière lui (escouade de deux).
 func _update_follow() -> void:
 	var leader := controlled
+	if leader == null:
+		return
 	var f := other_of(leader)
 	if f == null or not f.following:
 		return
@@ -546,6 +582,7 @@ func switch_survivor() -> bool:
 	var other := other_of(controlled)
 	if other == null:
 		return false
+	var had_leader := controlled != null
 	var was_following := other.following
 	_set_controlled(other)
 	if chapter == null:
@@ -554,7 +591,7 @@ func switch_survivor() -> bool:
 	else:
 		# L'escouade garde sa forme : si l'autre suivait, c'est l'ancien qui suit.
 		var prev := other_of(controlled)
-		if prev:
+		if prev and had_leader:
 			prev.following = was_following
 	return true
 
@@ -584,16 +621,35 @@ func _unhandled_input(event: InputEvent) -> void:
 			toggle_follow()
 			get_viewport().set_input_as_handled()
 			return
+		if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_SPACE:
+			release_control()
+			get_viewport().set_input_as_handled()
+			return
 	if chapter == null and step != Step.SWITCH:
 		return
 	if event.is_action_pressed("next_survivor"):
 		switch_survivor()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		var other := other_of(controlled)
-		if other and other.global_position.distance_to(get_global_mouse_position()) < 26.0:
-			switch_survivor()
-			get_viewport().set_input_as_handled()
+		for o in alive_survivors():
+			if o != controlled and o.global_position.distance_to(get_global_mouse_position()) < 26.0:
+				select_survivor(o)
+				get_viewport().set_input_as_handled()
+				return
+
+
+## Prend en main un survivant précis (clic droit).
+func select_survivor(s: Survivor) -> bool:
+	if chapter == null:
+		return switch_survivor()
+	if s == controlled or not is_instance_valid(s):
+		return false
+	var prev := controlled
+	var was_following := s.following
+	_set_controlled(s)
+	if prev:
+		prev.following = was_following
+	return true
 
 
 ## Fin du prologue : carton de titre, puis le chapitre 1 enchaîne.
@@ -681,6 +737,8 @@ func _on_night() -> void:
 
 
 func _on_day() -> void:
+	if day_night.speed > 1.0:
+		day_night.speed = 1.0   # l'aube arrête l'accélération
 	var o := other_of(controlled)
 	if o:
 		o._say("Encore une journée. Personne n'est venu nous chercher.", 3.2)
@@ -737,7 +795,7 @@ func _update_status() -> void:
 		lines.append(line)
 	if chapter != null:
 		lines.append("Stock du refuge : eau %d · nourriture %d · bois %d" % [stock.get_amount("eau"), stock.get_amount("nourriture"), stock.get_amount("bois")])
-		lines.append("Tab : changer de survivant · F : l'autre vous suit / attend")
+		lines.append("Tab : changer de survivant · F : l'autre vous suit / attend · Espace : lâcher")
 	_status.text = "\n".join(lines)
 
 
@@ -762,8 +820,6 @@ func _build_hud() -> void:
 	_objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_objective.custom_minimum_size = Vector2(356, 0)
 	v.add_child(_objective)
-	_clock = UIStyle.label("", 12, UIStyle.ACCENT)
-	v.add_child(_clock)
 	_status = UIStyle.label("", 12, UIStyle.TEXT_DIM)
 	v.add_child(_status)
 	var menu_btn := UIStyle.button("Menu  [Échap]", 13)
@@ -774,6 +830,24 @@ func _build_hud() -> void:
 	menu_btn.offset_top = 12
 	menu_btn.pressed.connect(_toggle_pause)
 	layer.add_child(menu_btn)
+	# Cadran du temps (en haut, au centre) et vignette du survivant dirigé
+	# (en bas à gauche)
+	_dial = DayDial.new()
+	_dial.day_night = day_night
+	_dial.anchor_left = 0.5
+	_dial.anchor_right = 0.5
+	_dial.offset_left = -60
+	_dial.offset_right = 60
+	_dial.offset_top = 6
+	layer.add_child(_dial)
+	_card = SurvivorCard.new()
+	_card.survivor = controlled
+	_card.anchor_top = 1.0
+	_card.anchor_bottom = 1.0
+	_card.offset_left = 12
+	_card.offset_bottom = -12
+	_card.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	layer.add_child(_card)
 	_fade = ColorRect.new()
 	_fade.color = Color(0, 0, 0, 1)
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)

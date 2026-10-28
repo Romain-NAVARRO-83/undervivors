@@ -55,7 +55,9 @@ func _plan() -> void:
 	_dn = _p.day_night
 	check(_dn != null, "le mode histoire a un cycle jour/nuit")
 	check(not _dn.is_night() and not Survivor.night, "on commence de jour")
-	check(_p._clock.text.contains("Jour 1"), "horloge affichée (%s)" % _p._clock.text)
+	check(_p._dial != null and _p._dial.day_night == _dn and _p._dial.is_inside_tree(), "cadran du temps en haut de l'écran")
+	check(absf(DayDial.hour_angle(12.0) + PI / 2.0) < 0.001, "cadran : midi en haut")
+	check(_p._card != null and _p._card.survivor == _p.controlled, "vignette du survivant dirigé")
 	Mob.harmless = true
 	_o = _p.other_of(_p.controlled)
 	var f := 10
@@ -127,4 +129,25 @@ func _plan() -> void:
 	f += 5
 	at(f, func():
 		check(not _p._overlay.visible, "« Continuer » : on reste sur l'île")
+		# Espace : plus personne n'est dirigé, le temps file jusqu'à l'aube
+		_dn.set_hour(14.0)
+		var was: Survivor = _p.controlled
+		check(_p.release_control(), "Espace : on lâche le survivant")
+		check(_p.controlled == null and not was.selected, "aucun survivant dirigé")
+		check(_p._card.survivor == null, "la vignette le signale")
+		check(_dn.speed > 1.0, "le temps passe plus vite (×%.0f)" % _dn.speed))
+	f += 60
+	at(f, func():
+		check(_dn.hour > 14.2, "une seconde accélérée fait plus d'une demi-heure de jeu (%.2f h)" % _dn.hour)
+		var cam: Vector2 = _p.camera.position
+		Input.action_press("move_right")
+		_q.append([_f + 20, func():
+			Input.action_release("move_right")
+			check(_p.camera.position.x > cam.x + 50.0, "caméra libre au clavier")]))
+	f += 60 * 60
+	at(f, func():
+		check(_dn.day == 3 and not _dn.is_night(), "l'aube est arrivée (jour %d, %.1f h)" % [_dn.day, _dn.hour])
+		check(_dn.speed == 1.0, "à l'aube, le temps reprend son cours normal")
+		check(_p.switch_survivor() and _p.controlled != null, "Tab : on reprend un survivant")
+		check(_p._card.survivor == _p.controlled, "la vignette le montre")
 		Mob.harmless = false)

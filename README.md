@@ -29,6 +29,7 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 | Panneau debug | F1, ou bouton en haut à droite |
 | Mode construction | B, ou bouton « Construire » en bas à droite |
 | Alerte (tout le monde au camp) | H, ou bouton « ALERTE » en bas à droite |
+| Mode histoire : lâcher le survivant (le temps file jusqu'à l'aube) | Espace |
 
 ## Contenu du prototype v0.1
 
@@ -339,6 +340,12 @@ Correction : une balle encore en vol quand son tireur meurt ne provoque plus d'e
 - **Fin du chapitre 1** : la cabane terminée, la nuit tombe et l'autre survivant va s'y coucher. Nouveau bouton **Continuer** sur l'écran de fin : on reste sur l'île en exploration libre.
 - Le mode test et le champ de tir n'ont pas de nuit.
 
+## Ajouts v0.35 : cadran du temps, vignette du survivant, temps accéléré
+
+- **Cadran du temps** en haut de l'écran (mode histoire) : un disque partagé entre le jour (ciel clair) et la nuit (étoiles), midi en haut, minuit en bas ; une aiguille terminée par le soleil ou la lune tourne avec l'heure. Dessous : « Jour 2 · 14 h 30 », et ⏩ quand le temps est accéléré.
+- **Vignette du survivant dirigé** en bas à gauche : portrait, nom, niveau, arme, sac, jauges de PV, d'eau, de nourriture et d'XP.
+- **Espace** (chapitre 1) : on lâche le survivant dirigé, qui redevient libre. Sans survivant dirigé, **le temps passe ×8 jusqu'à l'aube**, puis reprend son cours ; la caméra se déplace au clavier (ZQSD / flèches). **Tab** ou **clic droit** sur un survivant pour en reprendre un (le temps reprend alors son cours normal).
+
 ## Structure
 
 ```
@@ -381,6 +388,8 @@ scripts/loot_table.gd     tirage du contenu des coffres
 scripts/item_pickup.gd    objet au sol, ramassage
 scripts/ui/loot_panel.gd  panneau du stock d'objets
 scripts/ui/debug_panel.gd panneau debug (F1)
+scripts/ui/day_dial.gd    cadran du temps (mode histoire)
+scripts/ui/survivor_card.gd  vignette du survivant dirigé (mode histoire)
 scripts/ui/               interface : panneau de gestion, tuiles, vignettes, styles
 data/weapons/*.tres       armes, modifiables dans l'inspecteur de Godot
 tests/run_tests.gd        tests automatisés (mode test)
