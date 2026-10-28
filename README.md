@@ -346,6 +346,18 @@ Correction : une balle encore en vol quand son tireur meurt ne provoque plus d'e
 - **Vignette du survivant dirigé** en bas à gauche : portrait, nom, niveau, arme, sac, jauges de PV, d'eau, de nourriture et d'XP.
 - **Espace** (chapitre 1) : on lâche le survivant dirigé, qui redevient libre. Sans survivant dirigé, **le temps passe ×8 jusqu'à l'aube**, puis reprend son cours ; la caméra se déplace au clavier (ZQSD / flèches). **Tab** ou **clic droit** sur un survivant pour en reprendre un (le temps reprend alors son cours normal).
 
+## Ajouts v0.36 : portions d'eau et de nourriture, panneau développeur du mode histoire
+
+- **Une bouteille d'eau et une boîte de conserve font 3 portions.** Dans le sac, un survivant qui a soif (ou faim) en consomme **une portion** (25 points) et garde le reste ; l'objet disparaît quand il est vide. Au feu, les portions restantes vont au stock (1 portion = 1 unité) ; si le stock est plein, l'objet entamé reste dans le sac. Le nombre de portions se règle dans `data/items/*.tres` (`amount`), et s'affiche au sol : « Bouteille d'eau (3/3) ».
+- Chapitre 1 : l'objectif de nourriture passe à **6 portions** (2 conserves).
+- **Panneau développeur du mode histoire** (**F1**, ou bouton « Dev » en haut à droite) :
+  - **Temps** : +1 h, +6 h, aube, midi, crépuscule, minuit ; pause, ×1, ×4, ×16.
+  - **Survivant dirigé** : soigner, blesser, remplir ou vider eau et faim, +100 XP, retour au refuge, équiper n'importe quelle arme ; **invincibles**.
+  - **Tous les survivants** : soigner, nourrir.
+  - **Stock du refuge** : +3 eau, +3 nourriture, +8 bois, vider.
+  - **Monstres** : inoffensifs, tuer les proches, tuer tous.
+  - **Déroulé** : **étape suivante** (prologue et chapitre 1, téléporte au besoin), aller au chapitre 1, finir la cabane, révéler l'objectif.
+
 ## Structure
 
 ```
@@ -389,6 +401,7 @@ scripts/item_pickup.gd    objet au sol, ramassage
 scripts/ui/loot_panel.gd  panneau du stock d'objets
 scripts/ui/debug_panel.gd panneau debug (F1)
 scripts/ui/day_dial.gd    cadran du temps (mode histoire)
+scripts/ui/story_dev_panel.gd  panneau développeur du mode histoire (F1)
 scripts/ui/survivor_card.gd  vignette du survivant dirigé (mode histoire)
 scripts/ui/               interface : panneau de gestion, tuiles, vignettes, styles
 data/weapons/*.tres       armes, modifiables dans l'inspecteur de Godot
@@ -415,4 +428,5 @@ godot --headless --fixed-fps 60 --path . -s tests/run_story_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_chapter1_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_range_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_daynight_tests.gd
+godot --headless --fixed-fps 60 --path . -s tests/run_story_dev_tests.gd
 ```

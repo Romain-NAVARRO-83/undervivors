@@ -230,6 +230,8 @@ func try_pick_up(item: Resource) -> bool:
 		equip(item)
 		_say("%s, à moi !" % LootTable.item_name(item), 2.0)
 		return true
+	if item is ConsumableData:
+		item = item.instance()   # ses portions lui sont propres
 	if inventory.size() >= bag_capacity():
 		if _full_bag_cooldown <= 0.0:
 			_say("Mon sac est plein !", 2.0)
@@ -268,9 +270,12 @@ func _deposit_inventory() -> void:
 	for item in inventory:
 		if item is ConsumableData:
 			# Eau, nourriture : dans le stock du village (s'il reste de la place).
-			if stock.add(item.resource_type, item.amount) > 0:
+			# Les portions restantes vont au stock, dans la limite de la place.
+			var accepted := stock.add(item.resource_type, item.remaining())
+			item.used += accepted
+			if accepted > 0:
 				n += 1
-			else:
+			if item.remaining() > 0:
 				kept.append(item)
 		else:
 			stock.add_item(item)
@@ -463,8 +468,11 @@ func _consume_from_bag(resource_type: String) -> bool:
 	for i in inventory.size():
 		var it = inventory[i]
 		if it is ConsumableData and it.resource_type == resource_type:
-			inventory.remove_at(i)
-			set(prop, minf(level + it.amount * REFILL_PER_UNIT, NEED_MAX))
+			# Une portion à la fois : l'objet reste dans le sac tant qu'il en reste.
+			it.used += 1
+			if it.remaining() <= 0:
+				inventory.remove_at(i)
+			set(prop, minf(level + REFILL_PER_UNIT, NEED_MAX))
 			_say("Slurp !" if resource_type == "eau" else "Miam !", 1.4)
 			return true
 	return false

@@ -23,7 +23,7 @@ func _ready() -> void:
 	shape.shape = circle
 	add_child(shape)
 	_label = Label.new()
-	_label.text = LootTable.item_name(item)
+	_label.text = item.label() if item is ConsumableData else LootTable.item_name(item)
 	_label.add_theme_font_size_override("font_size", 10)
 	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_label.add_theme_constant_override("outline_size", 3)

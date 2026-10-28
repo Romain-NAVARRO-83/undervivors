@@ -847,23 +847,36 @@ func test_consumables() -> void:
 	check(water.resource_type == "eau" and food.resource_type == "nourriture", "unités d'eau et de nourriture")
 	check(LootTable.item_name(water) == "Bouteille d'eau", "nom de l'unité d'eau")
 	var s := Survivor.new()
-	s.inventory.append(water)
-	s.inventory.append(food)
+	s.inventory.append(water.instance())
+	s.inventory.append(food.instance())
 	s.thirst = 80.0
 	check(not s._consume_from_bag("eau"), "pas soif : il garde sa bouteille")
 	s.thirst = 20.0
 	check(s._consume_from_bag("eau") and is_equal_approx(s.thirst, 45.0), "il a soif et porte de l'eau : il la boit (soif %.0f)" % s.thirst)
-	check(s.inventory.size() == 1 and s.inventory[0] == food, "la bouteille a quitté le sac")
+	check(water.amount == 3 and food.amount == 3, "une bouteille et une conserve font 3 portions")
+	check(s.inventory.size() == 2 and s.inventory[0].remaining() == 2, "il reste 2 portions dans la bouteille")
+	s.thirst = 20.0
+	check(s._consume_from_bag("eau") and s.inventory[0].remaining() == 1, "deuxième gorgée")
+	s.thirst = 20.0
+	check(s._consume_from_bag("eau") and s.inventory.size() == 1 and s.inventory[0].resource_type == "nourriture", "bouteille vide : elle quitte le sac")
+	s.thirst = 20.0
 	check(not s._consume_from_bag("eau"), "plus d'eau dans le sac")
 	s.hunger = 10.0
-	check(s._consume_from_bag("nourriture") and s.inventory.is_empty(), "il a faim : il mange sa ration")
+	check(s._consume_from_bag("nourriture") and s.inventory.size() == 1, "il a faim : il mange une portion, la conserve reste")
 	# Au feu de camp : les unités vont dans le stock du village
 	var st := VillageStock.new()
 	s.stock = st
-	s.inventory.append(water)
-	s.inventory.append(water)
+	s.inventory.clear()
+	s.inventory.append(water.instance())
+	s.inventory.append(water.instance())
 	s._deposit_inventory()
-	check(st.get_amount("eau") == 2 and s.inventory.is_empty(), "unités déposées au stock (eau %d)" % st.get_amount("eau"))
+	check(st.get_amount("eau") == 6 and s.inventory.is_empty(), "portions déposées au stock (eau %d)" % st.get_amount("eau"))
+	# Stock presque plein : le reste de la bouteille reste dans le sac
+	s.inventory.append(water.instance())
+	s.inventory.append(water.instance())
+	s._deposit_inventory()
+	check(st.get_amount("eau") == 10 and s.inventory.size() == 1 and s.inventory[0].remaining() == 2, "stock plein : la bouteille entamée reste dans le sac")
+	check(water.used == 0, "la ressource partagée n'est jamais entamée")
 	check(st.items.is_empty(), "elles ne vont pas dans le stock d'objets")
 	st.free()
 	s.free()

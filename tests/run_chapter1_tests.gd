@@ -194,7 +194,7 @@ func _plan() -> void:
 	at(f, func():
 		var o: Survivor = _p.other_of(_c)
 		check(o.weapon != null, "l'arme rapportée au feu va au survivant resté au camp")
-		check(_ch.food_brought() == 1, "une conserve rapportée (%d)" % _ch.food_brought())
+		check(_ch.food_brought() == 3, "une conserve rapportée : 3 portions (%d)" % _ch.food_brought())
 		# Le bosquet : deux conserves, le coffre (planches, conserve, eau)
 		for e in Chapter1.LOOT.slice(7, 9):
 			_c.global_position = e[0]

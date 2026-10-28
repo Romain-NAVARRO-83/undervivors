@@ -69,6 +69,7 @@ var chapter: Chapter1          # chapitre en cours après le prologue (sinon nul
 var day_night: DayNight
 var _lamp: PointLight2D        # petite lumière autour du survivant dirigé, la nuit
 var _dial: DayDial
+var dev_panel: StoryDevPanel
 var _card: SurvivorCard
 ## Accélération du temps quand aucun survivant n'est dirigé (jusqu'à l'aube).
 const FAST_TIME := 8.0
@@ -450,7 +451,7 @@ func _process(delta: float) -> void:
 			if n >= WATER_NEEDED:
 				_advance(Step.BRING_WATER)
 		Step.BRING_WATER:
-			if stock.total_added.get("eau", 0) >= WATER_NEEDED:
+			if water_in_bag() == 0 and stock.total_added.get("eau", 0) > 0:
 				_advance(Step.FRIEND_DRINKS)
 		Step.FRIEND_DRINKS:
 			if friend.thirst >= Survivor.NEED_LOW or _step_t > 8.0:
@@ -565,13 +566,23 @@ func other_of(s: Survivor) -> Survivor:
 	return null
 
 
-## Unités d'eau trouvées : dans le sac du survivant ou déjà déposées au stock.
+## Bouteilles d'eau trouvées (ramassées), qu'elles soient encore dans le sac
+## ou déjà déposées au stock.
 func water_found() -> int:
+	var n := 0
+	for w in water_items:
+		if not is_instance_valid(w) or w.is_queued_for_deletion():
+			n += 1
+	return n
+
+
+## Bouteilles encore dans le sac du premier survivant.
+func water_in_bag() -> int:
 	var n := 0
 	for it in survivor.inventory:
 		if it is ConsumableData and it.resource_type == "eau":
 			n += 1
-	return n + stock.total_added.get("eau", 0)
+	return n
 
 
 ## Changement de survivant (Tab ou clic droit sur l'autre). Le premier
@@ -613,6 +624,10 @@ func toggle_follow() -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_debug"):
+		dev_panel.toggle()
+		get_viewport().set_input_as_handled()
+		return
 	if chapter != null:
 		if chapter.handle_input(event):
 			get_viewport().set_input_as_handled()
@@ -830,6 +845,18 @@ func _build_hud() -> void:
 	menu_btn.offset_top = 12
 	menu_btn.pressed.connect(_toggle_pause)
 	layer.add_child(menu_btn)
+	# Panneau développeur (F1)
+	dev_panel = StoryDevPanel.new()
+	dev_panel.story = self
+	layer.add_child(dev_panel)
+	var dev_btn := UIStyle.button("Dev  [F1]", 13)
+	dev_btn.anchor_left = 1.0
+	dev_btn.anchor_right = 1.0
+	dev_btn.offset_left = -250
+	dev_btn.offset_right = -158
+	dev_btn.offset_top = 12
+	dev_btn.pressed.connect(func(): dev_panel.toggle())
+	layer.add_child(dev_btn)
 	# Cadran du temps (en haut, au centre) et vignette du survivant dirigé
 	# (en bas à gauche)
 	_dial = DayDial.new()

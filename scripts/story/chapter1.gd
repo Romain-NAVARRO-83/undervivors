@@ -19,7 +19,8 @@ extends Node
 enum Step { INTRO, FIND_WEAPON, FIRST_FIGHT, SUPPLIES, BUILD, BUILDING, DONE }
 
 const WOOD_NEEDED := Cabin.COST
-const FOOD_NEEDED := 3
+## Portions de nourriture à rapporter (une conserve en fait 3).
+const FOOD_NEEDED := 6
 ## Après ce délai sans rien ramasser, la flèche montre le loot le plus proche.
 const HINT_DELAY := 45.0
 
@@ -292,7 +293,7 @@ func _advance(next: Step) -> void:
 func _supplies_text() -> String:
 	var c: Survivor = story.controlled
 	var bag := "%d/%d" % [c.inventory.size(), c.bag_capacity()] if is_instance_valid(c) else "-"
-	return "Explorer, ramasser, rapporter au feu. Bois au stock : %d/%d · Nourriture rapportée : %d/%d\nUne crique à l'ouest, des débris au nord-est, un bosquet au nord. Sac : %s" % [
+	return "Explorer, ramasser, rapporter au feu. Bois au stock : %d/%d · Nourriture rapportée : %d/%d portions\nUne crique à l'ouest, des débris au nord-est, un bosquet au nord. Sac : %s" % [
 		mini(wood_in_stock(), WOOD_NEEDED), WOOD_NEEDED, mini(food_brought(), FOOD_NEEDED), FOOD_NEEDED, bag]
 
 
