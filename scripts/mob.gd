@@ -72,6 +72,7 @@ var world: Node2D
 var _alive := true
 var _stats_ready := false
 var _flash := 0.0
+var _squash_tw: Tween
 var _heal_fx := 0.0
 var _t := 0.0
 var _lunge := 0.0
@@ -173,7 +174,8 @@ func take_hit(base: float, element: int, element_damage: float, source: Node) ->
 	var mult := mob_type.element_mult(element) if element != 0 else 1.0
 	var elem := element_damage * mult
 	var total := base + elem
-	_flash = 0.1
+	_flash = 0.12
+	_hit_squash()
 	_spawn_number(total, _element_color(element) if element != 0 and element_damage > 0.0 else Color(1, 0.9, 0.4), mult)
 	if element != 0 and element_damage > 0.0 and mult > 0.0:
 		_apply_element(element, elem, mult, source)
@@ -269,8 +271,21 @@ func _give_xp_to_last_attacker() -> void:
 		_last_attacker.add_xp(xp_reward)
 
 
+## Animation de coup : le monstre s'écrase puis reprend sa forme.
+func _hit_squash() -> void:
+	if _squash_tw and _squash_tw.is_valid():
+		_squash_tw.kill()
+	scale = Vector2(1.25, 0.8)
+	_squash_tw = create_tween()
+	_squash_tw.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_squash_tw.tween_property(self, "scale", Vector2.ONE, 0.16)
+
+
 func _die() -> void:
 	_alive = false
+	if _squash_tw and _squash_tw.is_valid():
+		_squash_tw.kill()
+	scale = Vector2.ONE
 	died.emit(self)
 	if special:
 		_drop_loot()

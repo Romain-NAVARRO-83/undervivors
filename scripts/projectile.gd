@@ -10,7 +10,15 @@ var max_distance: float = 360.0
 var color: Color = Color.WHITE
 var shooter: Node = null
 
+## Rayon de la zone de touche (plus large que la balle dessinée, pour
+## pardonner une visée approximative).
+const HIT_RADIUS := 8.0
+## La balle vole à hauteur de buste (10 px au-dessus du sol) mais les
+## monstres ont leur zone de touche aux pieds : on recale la zone vers le bas.
+const HIT_DROP := 8.0
+
 var _travelled := 0.0
+var _done := false
 
 
 func _ready() -> void:
@@ -18,8 +26,9 @@ func _ready() -> void:
 	collision_mask = 2 | 4  # ennemis + obstacles (les rochers arrêtent les tirs)
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
-	circle.radius = 3.0
+	circle.radius = HIT_RADIUS
 	shape.shape = circle
+	shape.position = Vector2(0, HIT_DROP)
 	add_child(shape)
 	body_entered.connect(_on_body_entered)
 
@@ -33,6 +42,10 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
+	if _done:
+		return   # deux corps touchés dans la même image : un seul impact
+	_done = true
+	_impact(body)
 	if body is Mob:
 		# Les monstres gèrent la part élémentaire (résistances, effets).
 		var killed_mob: bool = body.take_hit(damage, element, element_damage, shooter)
@@ -48,6 +61,19 @@ func _on_body_entered(body: Node) -> void:
 		if killed and is_instance_valid(shooter) and shooter.has_method("add_xp"):
 			shooter.add_xp(body.get("xp_reward") if body.get("xp_reward") != null else 10)
 	queue_free()
+
+
+## Animation d'impact au point de contact.
+func _impact(body: Node) -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	var kind := HitEffect.Kind.DUST
+	if body is Mob:
+		kind = HitEffect.Kind.CREATURE
+	elif body is LootChest or body is Building:
+		kind = HitEffect.Kind.WOOD
+	HitEffect.spawn(parent, global_position, color, kind, velocity)
 
 
 func _draw() -> void:

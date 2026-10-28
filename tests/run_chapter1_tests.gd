@@ -96,7 +96,27 @@ func _plan() -> void:
 		check(_c.weapon != null and _c.weapon.resource_path == Survivor.SLINGSHOT_PATH, "lance-pierre ramassé à terre et équipé")
 		check(_ch.step == Chapter1.Step.FIRST_FIGHT, "premier combat")
 		check(is_instance_valid(_ch.first_mob), "un rongeur à abattre")
-		_ch.first_mob.take_damage(999.0))
+		# Tir un peu au-dessus des pieds du monstre (hauteur de buste) : il touche
+		var m: Mob = _ch.first_mob
+		m.set_physics_process(false)
+		var pr := Projectile.new()
+		pr.velocity = Vector2(560, 0)
+		pr.damage = 1.0
+		pr.max_distance = 200.0
+		pr.color = Color.YELLOW
+		pr.position = m.global_position + Vector2(-70, -20)
+		_p.world.add_child(pr))
+	f += 12
+	at(f, func():
+		var m: Mob = _ch.first_mob
+		check(m.hp < m.max_hp, "la balle touche un monstre visé à hauteur de buste (PV %.0f/%.0f)" % [m.hp, m.max_hp])
+		var fx := 0
+		for n in _p.world.get_children():
+			if n is HitEffect:
+				fx += 1
+		check(fx >= 1, "animation d'impact")
+		m.set_physics_process(true)
+		m.take_damage(999.0))
 	f += 30
 	at(f, func():
 		check(_ch.step == Chapter1.Step.SUPPLIES, "objectif : provisions et bois")

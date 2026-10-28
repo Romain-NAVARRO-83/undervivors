@@ -306,6 +306,12 @@ Corrections :
 - Prologue : le premier survivant pouvait boire au feu l'eau rapportée pour l'ami (test du prologue qui échouait de temps en temps).
 - Un survivant blessé qui se soigne au camp va quand même boire et manger au stock.
 
+## Ajouts v0.31 : tirs plus faciles à placer, animation d'impact
+
+- **Zone de touche des balles agrandie** : rayon 8 px au lieu de 3, et recalée sur le sol. La balle vole à hauteur de buste alors que les monstres ont leur zone de touche aux pieds : on ratait des tirs qui passaient visuellement sur le monstre. Réglages en tête de `scripts/projectile.gd` (`HIT_RADIUS`, `HIT_DROP`).
+- **Animation d'impact** (`scripts/hit_effect.gd`) : éclair blanc, onde qui s'élargit et éclats projetés vers l'avant du tir, aux couleurs de la balle. Variantes : échardes sur un coffre ou une construction, poussière sur un rocher ou un arbre.
+- **Le monstre touché s'écrase** puis reprend sa forme, en plus du flash blanc.
+
 ## Structure
 
 ```
@@ -315,6 +321,7 @@ scripts/survivor.gd       survivant : contrôle, errance, tir autonome, stats
 scripts/name_generator.gd générateur de noms par syllabes multi-pays
 scripts/weapon_data.gd    ressource « arme » (dégâts, cadence, dispersion, élément…)
 scripts/projectile.gd     projectile
+scripts/hit_effect.gd     animation d'impact des tirs
 scripts/wave_manager.gd   vagues de monstres
 scripts/mob_spawner.gd    générateur de bots
 scripts/ridge.gd          crête rocheuse et bordure de carte
