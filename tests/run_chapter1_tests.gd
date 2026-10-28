@@ -7,7 +7,11 @@ extends SceneTree
 var _failures := 0
 var _checks := 0
 var _f := 0
-var _p: StoryPrologue
+## Scripts préchargés : le test marche même si le cache des noms de classes
+## de Godot n'est pas encore à jour.
+const Story := preload("res://scripts/story/prologue.gd")
+
+var _p: Node
 var _ch: Chapter1
 var _c: Survivor
 var _q: Array = []       # file d'actions : [frame, Callable]
@@ -15,7 +19,7 @@ var _thirst0 := 0.0
 
 
 func _init() -> void:
-	StoryPrologue.start_chapter = 1
+	Story.start_chapter = 1
 	_p = load("res://scenes/story.tscn").instantiate()
 	root.add_child(_p)
 
@@ -150,7 +154,7 @@ func _plan() -> void:
 		_c.global_position = _p.REFUGE_POS + Vector2(6, 4))
 	f += 70
 	at(f, func():
-		var o := _p.other_of(_c)
+		var o: Survivor = _p.other_of(_c)
 		check(o.weapon != null, "l'arme rapportée au feu va au survivant resté au camp")
 		check(_ch.food_brought() == 1, "une conserve rapportée (%d)" % _ch.food_brought())
 		# Le bosquet : deux conserves, le coffre (planches, conserve, eau)
@@ -178,11 +182,12 @@ func _plan() -> void:
 		check(_ch.step == Chapter1.Step.BUILD, "objectif : construire la cabane")
 		check(_p._arrow.target == _ch.plot_position(), "la flèche montre les piquets")
 		# Escouade de deux : F, puis Tab
-		var o := _p.other_of(_c)
+		var o: Survivor = _p.other_of(_c)
 		check(_p.toggle_follow() and o.following, "F : l'autre nous suit")
 		check(_p.switch_survivor() and _p.controlled == o, "Tab : on change de survivant")
 		check(_c.following and not o.following, "l'escouade garde sa forme : l'ancien suit le nouveau")
 		_c = _p.controlled
+		_c.global_position = _p.REFUGE_POS + Vector2(300, 0)
 		check(not _ch.try_build(), "trop loin des piquets pour construire")
 		_c.global_position = _ch.plot_position() + Vector2(60, 40))
 	f += 5
@@ -197,7 +202,7 @@ func _plan() -> void:
 		check(_p.stock.get_amount("bois") < Chapter1.WOOD_NEEDED, "la cabane a coûté %d bois" % Chapter1.WOOD_NEEDED)
 		check(_p.refuge.has_cabin, "les piquets laissent place au chantier")
 		# Mort définitive pendant le chapitre : on garde la main sur l'autre
-		var o := _p.other_of(_c)
+		var o: Survivor = _p.other_of(_c)
 		o.take_damage(9999.0))
 	f += 5
 	at(f, func():

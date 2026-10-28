@@ -4,6 +4,8 @@ extends Control
 
 const STORY_SCENE := "res://scenes/story.tscn"
 const TEST_SCENE := "res://scenes/main.tscn"
+## Script du mode histoire (préchargé : pas de nom de classe global à attendre).
+const Story := preload("res://scripts/story/prologue.gd")
 
 var _t := 0.0
 
@@ -44,7 +46,7 @@ func _ready() -> void:
 
 
 func _start_story(chapter: int) -> void:
-	StoryPrologue.start_chapter = chapter
+	Story.start_chapter = chapter
 	get_tree().change_scene_to_file(STORY_SCENE)
 
 

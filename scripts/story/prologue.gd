@@ -1,4 +1,3 @@
-class_name StoryPrologue
 extends Node2D
 ## Mode histoire — Prologue « La plage ».
 ##
