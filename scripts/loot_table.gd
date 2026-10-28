@@ -13,11 +13,13 @@ const ENTRIES := [
 	# Unités de ressources à stocker (eau, nourriture)
 	["res://data/items/eau.tres", 6],
 	["res://data/items/nourriture.tres", 6],
+	# Arme générée au hasard (WeaponGenerator), du niveau du coffre
+	["generated", 6],
 ]
 
 
 ## Retourne entre `min_items` et `max_items` objets tirés au hasard.
-static func roll(rng: RandomNumberGenerator, min_items := 1, max_items := 3) -> Array[Resource]:
+static func roll(rng: RandomNumberGenerator, min_items := 1, max_items := 3, level := 0) -> Array[Resource]:
 	var total := 0
 	for e in ENTRIES:
 		total += e[1]
@@ -27,7 +29,10 @@ static func roll(rng: RandomNumberGenerator, min_items := 1, max_items := 3) -> 
 		for e in ENTRIES:
 			pick -= e[1]
 			if pick <= 0:
-				out.append(load(e[0]))
+				if e[0] == "generated":
+					out.append(WeaponGenerator.generate(rng, level if level > 0 else rng.randi_range(1, 3)))
+				else:
+					out.append(load(e[0]))
 				break
 	return out
 

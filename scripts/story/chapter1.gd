@@ -141,63 +141,96 @@ func _add_mob(pos: Vector2, type_id: String, lvl: int) -> Mob:
 
 
 ## Arbres du bosquet (en couronne, avec une trouée au sud), palmiers de la
-## crique et quelques rochers. Rien ne bloque les points de loot.
+## crique, bosquets épars dans la prairie, et des repères pour s'orienter :
+## panneau au carrefour, cairns le long des sentiers, drapeau à la crique,
+## arbre mort à l'entrée du bosquet. Rien sur les sentiers ni sur le loot.
+## Chaque arbre occupe une case entière de la grille (voir TreeField.plant).
 func _place_decor() -> void:
 	var world: Node2D = story.world
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1028
-	var keep := [SLINGSHOT_POS, FIRST_MOB_POS, BeachMap.GROVE_CENTER]
+	var keep := [SLINGSHOT_POS, FIRST_MOB_POS, BeachMap.GROVE_CENTER, BeachMap.CROSSROADS]
 	for entry in LOOT + CHESTS + MOBS:
 		keep.append(entry[0])
-	var placed: Array[Vector2] = []
 	var attempts := 0
-	while placed.size() < 46 and attempts < 1500:
+	var planted := 0
+	while planted < 52 and attempts < 2000:
 		attempts += 1
 		var ang := rng.randf() * TAU
-		# Trouée au sud du bosquet : on y entre par là
-		if absf(wrapf(ang - PI / 2.0, -PI, PI)) < 0.45:
+		# Trouée au sud du bosquet : le sentier y entre
+		if absf(wrapf(ang - PI / 2.0, -PI, PI)) < 0.4:
 			continue
-		var r := rng.randf_range(0.45, 1.05) * BeachMap.GROVE_RADIUS
+		var r := rng.randf_range(0.4, 1.05) * BeachMap.GROVE_RADIUS
 		var p := BeachMap.GROVE_CENTER + Vector2(cos(ang), sin(ang) * 0.5) * r
-		if not _clear(p, keep, 70.0) or not _clear(p, placed, 34.0):
+		if _tree_ok(p, keep, 64.0) and TreeField.plant(world, p, rng):
+			planted += 1
+	# Bosquets épars dans la prairie (petits groupes de 2 à 4 arbres)
+	var clumps := 0
+	attempts = 0
+	while clumps < 14 and attempts < 400:
+		attempts += 1
+		var c := Vector2(rng.randf_range(BeachMap.LEFT + 150, BeachMap.RIGHT - 150), rng.randf_range(BeachMap.NORTH_TOP + 180, BeachMap.TOP - 60))
+		if BeachMap.ground_at(c) != BeachMap.Ground.GRASS or not _tree_ok(c, keep, 120.0):
 			continue
-		var tree := TreeField.IsoTree.new()
-		tree.position = p
-		tree.variant = rng.randi_range(0, 2)
-		tree.scale_k = rng.randf_range(0.9, 1.3)
-		tree.seed_value = rng.randi()
-		world.add_child(tree)
-		placed.append(p)
-	# Palmiers autour de la crique et arbres isolés dans la prairie
+		if c.distance_to(story.REFUGE_POS) < 280.0 or BeachMap._iso_dist(c, BeachMap.WRECK2_CENTER) < 280.0:
+			continue
+		for k in rng.randi_range(2, 4):
+			var p := c + Vector2(rng.randf_range(-70, 70), rng.randf_range(-35, 35))
+			if _tree_ok(p, keep, 90.0):
+				TreeField.plant(world, p, rng)
+		clumps += 1
+	# Rochers isolés (sans collision)
+	for k in 10:
+		var p := Vector2(rng.randf_range(BeachMap.LEFT + 120, BeachMap.RIGHT - 120), rng.randf_range(BeachMap.NORTH_TOP + 160, BeachMap.TOP - 40))
+		if BeachMap.ground_at(p) == BeachMap.Ground.GRASS and _tree_ok(p, keep, 100.0):
+			var rock := Ridge.Rock.new()
+			rock.position = p
+			rock.size = rng.randf_range(1.0, 1.6)
+			rock.seed_value = rng.randi()
+			world.add_child(rock)
+	# Palmiers autour de la crique
 	for k in 14:
 		var p := BeachMap.COVE_CENTER + Vector2(rng.randf_range(-1, 1), rng.randf_range(-1, 1) * 0.5) * BeachMap.COVE_RADIUS * 1.2
-		if not _clear(p, keep, 60.0):
+		if not _clear(p, keep, 60.0) or BeachMap.path_distance(p) < BeachMap.PATH_HALF + 20.0:
 			continue
 		var palm := Palm.new()
 		palm.position = p
 		palm.height = rng.randf_range(60, 90)
 		palm.lean = rng.randf_range(-0.35, 0.35)
 		world.add_child(palm)
-	for k in 30:
-		var p := Vector2(rng.randf_range(BeachMap.LEFT + 120, BeachMap.RIGHT - 120), rng.randf_range(BeachMap.NORTH_TOP + 160, BeachMap.TOP - 40))
-		if BeachMap.ground_at(p) != BeachMap.Ground.GRASS or not _clear(p, keep, 110.0) or not _clear(p, placed, 60.0):
-			continue
-		if p.distance_to(story.REFUGE_POS) < 260.0 or BeachMap._iso_dist(p, BeachMap.WRECK2_CENTER) < 260.0:
-			continue
-		if k % 3 == 0:
-			var rock := Ridge.Rock.new()
-			rock.position = p
-			rock.size = rng.randf_range(1.0, 1.6)
-			rock.seed_value = rng.randi()
-			world.add_child(rock)
-		else:
-			var tree := TreeField.IsoTree.new()
-			tree.position = p
-			tree.variant = rng.randi_range(0, 2)
-			tree.scale_k = rng.randf_range(0.9, 1.2)
-			tree.seed_value = rng.randi()
-			world.add_child(tree)
-			placed.append(p)
+	# Repères
+	_add_landmark(Landmark.Kind.SIGNPOST, BeachMap.CROSSROADS + Vector2(34, 10),
+		[["Bosquet", 0], ["Crique", -1], ["Épave", 1], ["Refuge", 2]])
+	_add_landmark(Landmark.Kind.SIGNPOST, Vector2(-40, -960), [["Carrefour", 0], ["Plage", 1]])
+	_add_landmark(Landmark.Kind.FLAG, BeachMap.COVE_CENTER + Vector2(110, -40))
+	_add_landmark(Landmark.Kind.DEAD_TREE, Vector2(-80, -1890))
+	for path in BeachMap.PATHS.slice(0, 4):
+		var length := 0.0
+		for i in path.size() - 1:
+			var a: Vector2 = path[i]
+			var b: Vector2 = path[i + 1]
+			var d := a.distance_to(b)
+			var next_cairn := 260.0 - fmod(length, 260.0)
+			while next_cairn < d:
+				var q := a.lerp(b, next_cairn / d)
+				var side := (b - a).normalized().orthogonal() * (BeachMap.PATH_HALF + 16.0)
+				_add_landmark(Landmark.Kind.CAIRN, q + side)
+				next_cairn += 260.0
+			length += d
+
+
+func _add_landmark(kind: Landmark.Kind, pos: Vector2, labels: Array = []) -> Landmark:
+	var l := Landmark.new()
+	l.kind = kind
+	l.position = pos
+	l.labels = labels
+	story.world.add_child(l)
+	return l
+
+
+## Un arbre peut pousser là : loin du loot, des monstres et des sentiers.
+func _tree_ok(p: Vector2, keep: Array, dist: float) -> bool:
+	return _clear(p, keep, dist) and BeachMap.path_distance(p) > BeachMap.PATH_HALF + 40.0
 
 
 static func _clear(p: Vector2, points: Array, dist: float) -> bool:

@@ -18,13 +18,16 @@ const LOOKAHEAD := 8            # lissage : point de passage visible le plus loi
 ## Cases pleines (Vector2i -> true), tenues à jour par le gestionnaire de construction.
 static var blocked := {}
 static var _astar: AStarGrid2D
+## Étendue de la grille (en tuiles). Par défaut la carte du mode test ; le
+## mode histoire l'agrandit à sa propre carte (set_region).
+const DEFAULT_REGION := Rect2i(-IsoGround.HALF_SIZE - 2, -IsoGround.HALF_SIZE - 2, 2 * IsoGround.HALF_SIZE + 5, 2 * IsoGround.HALF_SIZE + 5)
+static var region := DEFAULT_REGION
 
 
 static func _grid() -> AStarGrid2D:
 	if _astar == null:
-		var h := IsoGround.HALF_SIZE + 2
 		_astar = AStarGrid2D.new()
-		_astar.region = Rect2i(-h, -h, 2 * h + 1, 2 * h + 1)
+		_astar.region = region
 		_astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
 		_astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
 		_astar.default_estimate_heuristic = AStarGrid2D.HEURISTIC_OCTILE
@@ -46,6 +49,19 @@ static func set_blocked(t: Vector2i, on: bool) -> void:
 
 static func clear() -> void:
 	blocked.clear()
+	_astar = null
+	region = DEFAULT_REGION
+
+
+## Grille couvrant un rectangle du monde (px), avec une marge.
+static func set_region_world(r: Rect2) -> void:
+	var minv := Vector2i(1 << 20, 1 << 20)
+	var maxv := -minv
+	for c in [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]:
+		var t := BuildManager.world_to_tile(c)
+		minv = Vector2i(mini(minv.x, t.x), mini(minv.y, t.y))
+		maxv = Vector2i(maxi(maxv.x, t.x), maxi(maxv.y, t.y))
+	region = Rect2i(minv - Vector2i(3, 3), maxv - minv + Vector2i(7, 7))
 	_astar = null
 
 

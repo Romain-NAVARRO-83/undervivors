@@ -74,6 +74,32 @@ func _setup_checks() -> void:
 				planks += 1
 	check(planks >= Chapter1.WOOD_NEEDED, "assez de planches sur la carte (%d)" % planks)
 	_thirst0 = _c.thirst
+	# Arbres : une case entière chacun, bloquée pour la navigation
+	var trees: Array = _p.get_tree().get_nodes_in_group("trees")
+	check(trees.size() > 60, "arbres plantés (%d)" % trees.size())
+	var on_grid := true
+	var on_path := 0
+	var tiles := {}
+	for tr in trees:
+		var t := BuildManager.world_to_tile(tr.position)
+		if tr.position.distance_to(BuildManager.tile_center(t)) > 0.5 or not Nav.blocked.has(t):
+			on_grid = false
+		tiles[t] = true
+		if BeachMap.path_distance(tr.position) < BeachMap.PATH_HALF + 10.0:
+			on_path += 1
+	check(on_grid, "chaque arbre est au centre de sa case, case bloquée")
+	check(tiles.size() == trees.size(), "un seul arbre par case")
+	check(on_path == 0, "aucun arbre sur les sentiers (%d)" % on_path)
+	var tr0: Node2D = trees[0]
+	var from: Vector2 = tr0.position + Vector2(-90, 0)
+	var to: Vector2 = tr0.position + Vector2(90, 0)
+	var way := Nav.route(from, to)
+	check(way != to and Nav.segment_clear(from, way), "on contourne un arbre au lieu de foncer dedans")
+	var signs := 0
+	for n in _p.world.get_children():
+		if n is Landmark and n.kind == Landmark.Kind.SIGNPOST:
+			signs += 1
+	check(signs >= 2, "panneaux indicateurs (%d)" % signs)
 
 
 func _plan() -> void:

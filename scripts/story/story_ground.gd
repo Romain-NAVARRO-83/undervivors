@@ -52,9 +52,26 @@ func _draw() -> void:
 		var p := Vector2(rng.randf_range(BeachMap.LEFT, BeachMap.RIGHT), rng.randf_range(-200, 300))
 		if BeachMap.ground_at(p) == BeachMap.Ground.SAND:
 			draw_circle(p, rng.randf_range(1.5, 3.0), Color(0.95, 0.9, 0.82) if k % 3 else Color(0.6, 0.55, 0.5))
+	# Sentiers de terre battue (bords sombres, cœur clair, quelques cailloux)
+	for path in BeachMap.PATHS:
+		var pts := PackedVector2Array(path)
+		draw_polyline(pts, Color(0.42, 0.33, 0.2, 0.55), BeachMap.PATH_HALF * 2.0 + 8.0, true)
+		draw_polyline(pts, Color(0.62, 0.5, 0.32), BeachMap.PATH_HALF * 2.0, true)
+		draw_polyline(pts, Color(0.68, 0.56, 0.37), BeachMap.PATH_HALF, true)
+		for p in path:
+			draw_circle(p, BeachMap.PATH_HALF + 2.0, Color(0.62, 0.5, 0.32))
+		for i in path.size() - 1:
+			var a: Vector2 = path[i]
+			var b: Vector2 = path[i + 1]
+			var n := int(a.distance_to(b) / 40.0)
+			for k in n:
+				var q := a.lerp(b, (k + rng.randf()) / maxf(n, 1)) + Vector2(rng.randf_range(-12, 12), rng.randf_range(-6, 6))
+				draw_circle(q, rng.randf_range(1.2, 2.4), Color(0.5, 0.42, 0.3))
 	# Nord : touffes d'herbe, feuilles mortes dans le bosquet, galets dans la crique
 	for k in 420:
 		var p := Vector2(rng.randf_range(BeachMap.LEFT, BeachMap.RIGHT), rng.randf_range(top + 80, BeachMap.TOP))
+		if BeachMap.path_distance(p) < BeachMap.PATH_HALF + 4.0:
+			continue
 		match BeachMap.ground_at(p):
 			BeachMap.Ground.GRASS:
 				draw_line(p, p + Vector2(-2, -5), Color(0.26, 0.44, 0.22), 1.5)

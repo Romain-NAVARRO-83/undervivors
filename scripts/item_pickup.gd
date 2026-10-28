@@ -24,6 +24,10 @@ func _ready() -> void:
 	add_child(shape)
 	_label = Label.new()
 	_label.text = item.label() if item is ConsumableData else LootTable.item_name(item)
+	if item is WeaponData:
+		_label.add_theme_color_override("font_color", item.rarity_color())
+		_label.position = Vector2(-110, -38)
+		_label.size = Vector2(220, 14)
 	_label.add_theme_font_size_override("font_size", 10)
 	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_label.add_theme_constant_override("outline_size", 3)

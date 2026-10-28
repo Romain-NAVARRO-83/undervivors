@@ -27,6 +27,39 @@ const GROVE_CENTER := Vector2(-150, -2060)     # le bosquet, au nord
 const GROVE_RADIUS := 330.0
 const WRECK2_CENTER := Vector2(860, -1680)     # l'épave, au nord-est
 
+## Carrefour des sentiers, au nord du refuge.
+const CROSSROADS := Vector2(-120, -1460)
+## Sentiers de terre battue (polylignes) : ils relient le refuge au carrefour,
+## puis le carrefour à chaque coin à explorer. On ne plante rien dessus.
+const PATHS := [
+	# Refuge → valise du lance-pierre → carrefour
+	[Vector2(-150, -930), Vector2(-90, -1080), Vector2(-60, -1210), Vector2(-120, -1460)],
+	# Carrefour → la crique (ouest)
+	[Vector2(-120, -1460), Vector2(-420, -1500), Vector2(-700, -1440), Vector2(-920, -1470)],
+	# Carrefour → le bosquet (nord), jusqu'à sa trouée
+	[Vector2(-120, -1460), Vector2(-170, -1640), Vector2(-150, -1880)],
+	# Carrefour → l'épave (nord-est)
+	[Vector2(-120, -1460), Vector2(200, -1520), Vector2(480, -1590), Vector2(720, -1640)],
+	# Refuge → bout de la butte (le chemin du prologue, vers la plage)
+	[Vector2(-80, -840), Vector2(250, -640), Vector2(600, -420), Vector2(860, -260)],
+]
+const PATH_HALF := 18.0
+
+
+## Distance d'un point au sentier le plus proche.
+static func path_distance(p: Vector2) -> float:
+	var best := INF
+	for path in PATHS:
+		for i in path.size() - 1:
+			best = minf(best, _seg_dist(p, path[i], path[i + 1]))
+	return best
+
+
+static func _seg_dist(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+	return p.distance_to(a + ab * t)
+
 
 ## Ligne d'eau (y) en fonction de x.
 static func shore_y(x: float) -> float:

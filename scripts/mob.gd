@@ -301,7 +301,7 @@ func _die() -> void:
 
 ## Monstre spécial : laisse 2 à 4 objets au sol.
 func _drop_loot() -> void:
-	var items := LootTable.roll(_rng, 2, 4)
+	var items := LootTable.roll(_rng, 2, 4, clampi(level, 1, 5))
 	var parent := world if world else get_parent()
 	if parent == null:
 		return

@@ -31,7 +31,8 @@ var dummies: Array[TrainingDummy] = []
 var mob_level := 1
 
 var shots := 0                 # projectiles tirés par le survivant
-var hits := 0                  # projectiles qui ont touché une cible
+var hits := 0                  # tirs qui ont touché au moins une cible
+var _hit_shots := {}           # projectiles déjà comptés comme touche
 var total_damage := 0.0
 var _recent: Array = []        # [instant, dégâts] sur la fenêtre DPS
 var _t := 0.0
@@ -40,7 +41,10 @@ var _stats: Label
 var _weapon_label: Label
 var _level_label: Label
 var _harmless: CheckButton
-var _weapon_buttons: Array[Button] = []
+var _weapon_list: OptionButton
+var _gen_level: SpinBox
+var _gen_rarity: OptionButton
+var _rng := RandomNumberGenerator.new()
 
 
 func _enter_tree() -> void:
@@ -48,6 +52,7 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	_rng.randomize()
 	Terrain.enabled = false
 	Nav.clear()
 	Survivor.shelter = null
@@ -125,21 +130,36 @@ func select_weapon(i: int) -> void:
 	if i < 0 or i >= weapons.size():
 		return
 	survivor.equip(weapons[i])
-	for k in _weapon_buttons.size():
-		_weapon_buttons[k].modulate = UIStyle.ACCENT if k == i else Color.WHITE
+	if _weapon_list.selected != i:
+		_weapon_list.select(i)
 	var w := weapons[i]
-	var t := "%s\n%.0f × %d dégâts · %.1f tirs/s · dispersion %.0f°\nportée %.0f px · vitesse %.0f px/s · recul %.0f" % [
-		w.weapon_name, w.damage, w.bullets_per_shot, w.fire_rate, w.spread_deg, w.max_range, w.projectile_speed, w.recoil]
+	var t := "%s\nNiveau %d · %s%s\n%.0f × %d dégâts · %.1f tirs/s · dispersion %.0f°\nportée %.0f px · vitesse %.0f px/s · recul %.0f" % [
+		w.weapon_name, w.tier, w.rarity_name(), (" · " + w.brand) if w.brand != "" else "",
+		w.damage, w.bullets_per_shot, w.fire_rate, w.spread_deg, w.max_range, w.projectile_speed, w.recoil]
 	if w.element != WeaponData.Element.AUCUN:
 		t += "\n%s +%.0f par projectile" % [WeaponData.element_name(w.element), w.element_damage]
+	for line in w.effect_lines():
+		t += "\n• " + line
 	t += "\n≈ %.0f dégâts/s en théorie" % w.dps()
 	_weapon_label.text = t
+	_weapon_label.add_theme_color_override("font_color", w.rarity_color() if w.rarity > 0 else UIStyle.TEXT)
 	reset_stats()
+
+
+## Génère une arme aléatoire (niveau et rareté du panneau), l'ajoute à la
+## liste et l'équipe.
+func generate_weapon(level: int, rarity := -1) -> WeaponData:
+	var w := WeaponGenerator.generate(_rng, level, rarity)
+	weapons.append(w)
+	_weapon_list.add_item("✦ " + w.weapon_name)
+	select_weapon(weapons.size() - 1)
+	return w
 
 
 func reset_stats() -> void:
 	shots = 0
 	hits = 0
+	_hit_shots.clear()
 	total_damage = 0.0
 	_recent.clear()
 	for d in dummies:
@@ -222,14 +242,18 @@ func clear_mobs() -> void:
 # --- Statistiques -----------------------------------------------------------
 
 func _on_world_child(n: Node) -> void:
-	if n is Projectile and n.shooter == survivor:
+	if n is Projectile and n.shooter == survivor and not n.is_fragment:
 		shots += 1
 		n.hit_body.connect(_on_projectile_hit)
 
 
-func _on_projectile_hit(body: Node, _p: Projectile) -> void:
+func _on_projectile_hit(body: Node, p: Projectile) -> void:
 	if body is TrainingDummy or body is Mob:
-		hits += 1
+		# Une touche par tir, même s'il traverse ou explose sur plusieurs cibles
+		var id := p.get_instance_id()
+		if not _hit_shots.has(id):
+			_hit_shots[id] = true
+			hits += 1
 		if body is Mob:
 			# Dégâts réels après résistances : on lit la perte de PV juste après.
 			var before: float = body.hp
@@ -268,6 +292,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif k == KEY_R:
 			reset_stats()
 			get_viewport().set_input_as_handled()
+		elif k == KEY_G:
+			generate_weapon(int(_gen_level.value), _gen_rarity.selected - 1)
+			get_viewport().set_input_as_handled()
 	if event.is_action_pressed("deselect"):
 		_to_menu()
 		get_viewport().set_input_as_handled()
@@ -288,24 +315,46 @@ func _build_hud() -> void:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UIStyle.box(UIStyle.BG, UIStyle.BORDER, 10, 2, 12))
 	panel.position = Vector2(12, 12)
-	panel.custom_minimum_size = Vector2(330, 0)
+	panel.custom_minimum_size = Vector2(360, 0)
 	layer.add_child(panel)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 6)
 	panel.add_child(v)
 	v.add_child(UIStyle.label("CHAMP DE TIR", 12, UIStyle.ACCENT))
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 6)
-	grid.add_theme_constant_override("v_separation", 4)
-	v.add_child(grid)
+	# Liste des armes (touches 1 à 9 pour les neuf premières)
+	_weapon_list = OptionButton.new()
+	_weapon_list.focus_mode = Control.FOCUS_NONE
+	_weapon_list.add_theme_font_size_override("font_size", 13)
 	for i in weapons.size():
-		var b := UIStyle.button("%d  %s" % [i + 1, weapons[i].weapon_name], 12)
-		b.custom_minimum_size = Vector2(150, 30)
-		b.pressed.connect(select_weapon.bind(i))
-		grid.add_child(b)
-		_weapon_buttons.append(b)
+		var w := weapons[i]
+		_weapon_list.add_item(("%d  " % (i + 1) if i < 9 else "     ") + "%s  (niv. %d)" % [w.weapon_name, w.tier])
+	_weapon_list.item_selected.connect(select_weapon)
+	v.add_child(_weapon_list)
+	# Générateur d'armes aléatoires
+	var gen := HBoxContainer.new()
+	gen.add_theme_constant_override("separation", 4)
+	v.add_child(gen)
+	gen.add_child(UIStyle.label("Niv.", 12, UIStyle.TEXT_DIM))
+	_gen_level = SpinBox.new()
+	_gen_level.min_value = 1
+	_gen_level.max_value = 5
+	_gen_level.value = 3
+	_gen_level.focus_mode = Control.FOCUS_NONE
+	_gen_level.get_line_edit().focus_mode = Control.FOCUS_CLICK
+	gen.add_child(_gen_level)
+	_gen_rarity = OptionButton.new()
+	_gen_rarity.focus_mode = Control.FOCUS_NONE
+	_gen_rarity.add_theme_font_size_override("font_size", 12)
+	_gen_rarity.add_item("Rareté au hasard")
+	for r in WeaponData.RARITY_NAMES:
+		_gen_rarity.add_item(r)
+	gen.add_child(_gen_rarity)
+	var gen_btn := UIStyle.button("Générer  [G]", 12)
+	gen_btn.pressed.connect(func(): generate_weapon(int(_gen_level.value), _gen_rarity.selected - 1))
+	gen.add_child(gen_btn)
 	_weapon_label = UIStyle.label("", 13)
+	_weapon_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_weapon_label.custom_minimum_size = Vector2(330, 0)
 	v.add_child(_weapon_label)
 	_stats = UIStyle.label("", 13, UIStyle.ACCENT)
 	v.add_child(_stats)

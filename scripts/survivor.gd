@@ -427,7 +427,7 @@ func _process_controlled() -> void:
 		aim_dir = to_mouse.normalized()
 	# Pas de tir quand la souris survole l'interface (panneau, boutons).
 	if Input.is_action_pressed("shoot") and get_viewport().gui_get_hovered_control() == null and not BuildManager.placing:
-		try_shoot(aim_dir)
+		try_shoot(aim_dir, to_mouse.length())
 
 
 
@@ -783,7 +783,7 @@ func _autonomous_shooting() -> void:
 	if target:
 		var dir: Vector2 = (target.global_position - global_position).normalized()
 		aim_dir = dir
-		try_shoot(dir)
+		try_shoot(dir, global_position.distance_to(target.global_position))
 	elif velocity.length() > 1.0:
 		aim_dir = velocity.normalized()
 
@@ -820,24 +820,63 @@ func _nearest_enemy() -> Node2D:
 	return best
 
 
-func try_shoot(dir: Vector2) -> void:
+## Tire dans la direction `dir`. `aim_distance` : distance du point visé
+## (souris, cible) — utile aux tirs en cloche, qui retombent là ; -1 = portée.
+func try_shoot(dir: Vector2, aim_distance := -1.0) -> void:
 	if _cooldown > 0.0 or weapon == null or world == null:
 		return
 	_cooldown = weapon.cooldown()
-	for i in weapon.bullets_per_shot:
-		var spread := weapon.spread_deg * spread_factor()
+	var w := weapon
+	# Arme chaotique : un élément au hasard à chaque tir
+	var element := w.element
+	var element_damage := w.element_damage
+	if w.chaos:
+		element = _rng.randi_range(1, 4) as WeaponData.Element
+		element_damage = maxf(element_damage, w.damage * 0.5)
+	var col := WeaponData.element_color(element) if w.chaos else w.projectile_color
+	var reach := w.max_range if aim_distance < 0.0 else clampf(aim_distance, 40.0, w.max_range)
+	for i in w.bullets_per_shot:
+		var spread := w.spread_deg * spread_factor()
 		var offset := deg_to_rad(_rng.randf_range(-spread, spread) * 0.5)
+		var shot_dir := dir.rotated(offset)
 		var p := Projectile.new()
-		p.velocity = dir.rotated(offset) * weapon.projectile_speed
-		p.damage = weapon.damage
-		p.element = weapon.element
-		p.element_damage = weapon.element_damage
-		p.max_distance = weapon.max_range
-		p.color = weapon.projectile_color
+		p.velocity = shot_dir * w.projectile_speed
+		p.damage = w.damage
+		p.element = element
+		p.element_damage = element_damage
+		p.max_distance = w.max_range
+		p.color = col
 		p.shooter = self
+		p.pierce = w.pierce
+		p.ricochet = w.ricochet
+		p.homing = w.homing
+		p.wave = w.wave
+		p.split = w.split
+		p.vampire = w.vampire
+		p.boomerang = w.boomerang
+		p.aoe_radius = w.aoe_radius
+		p.size_k = w.projectile_size
+		p.fish = w.fish
+		if w.lob:
+			p.lob = true
+			# La dispersion joue aussi sur la distance de chute
+			var d := reach * (1.0 + _rng.randf_range(-spread, spread) / 100.0)
+			p.lob_target = global_position + shot_dir * d
 		p.global_position = global_position + dir * 12.0 + Vector2(0, -10)
 		world.add_child(p)
 	_apply_recoil(dir)
+
+
+## Soin (arme vampire) : les fractions de PV s'accumulent.
+var _heal_acc := 0.0
+
+
+func heal(amount: float) -> void:
+	_heal_acc += amount
+	var gain := int(_heal_acc)
+	if gain > 0:
+		_heal_acc -= gain
+		hp = mini(hp + gain, max_hp)
 
 
 ## Recul (GDD 7) : le tireur est repoussé en arrière de sa visée, d'environ

@@ -223,4 +223,8 @@ func _weapon_stats(w: WeaponData) -> String:
 		t += " · %s +%.0f" % [WeaponData.element_name(w.element), w.element_damage]
 	if w.recoil > 0.0:
 		t += " · recul %.0f" % w.recoil
+	t += " · niv. %d %s" % [w.tier, w.rarity_name().to_lower()]
+	var fx := w.effect_lines()
+	if not fx.is_empty():
+		t += "\n" + " · ".join(fx)
 	return t + "  ·  ≈ %.0f dégâts/s" % w.dps()

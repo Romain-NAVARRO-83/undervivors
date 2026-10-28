@@ -100,6 +100,7 @@ func _ready() -> void:
 	# Réglages partagés avec le mode test (variables statiques) : on repart propre.
 	Terrain.enabled = false   # pas de crête de la carte de test ici
 	Nav.clear()
+	Nav.set_region_world(Rect2(BeachMap.LEFT, BeachMap.NORTH_TOP, BeachMap.RIGHT - BeachMap.LEFT, BeachMap.BOTTOM - BeachMap.NORTH_TOP))
 	Mob.harmless = false
 	Survivor.alert = false
 	Survivor.squad_focus = null

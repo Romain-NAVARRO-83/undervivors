@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapon_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Fusil d'assaut militaire"
+damage = 12.0
+fire_rate = 10.0
+bullets_per_shot = 1
+spread_deg = 5.0
+projectile_speed = 850.0
+max_range = 460.0
+projectile_color = Color(1.0, 0.9, 0.5, 1)
+recoil = 6.0
+tier = 4

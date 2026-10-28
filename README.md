@@ -358,6 +358,22 @@ Correction : une balle encore en vol quand son tireur meurt ne provoque plus d'e
   - **Monstres** : inoffensifs, tuer les proches, tuer tous.
   - **Déroulé** : **étape suivante** (prologue et chapitre 1, téléporte au besoin), aller au chapitre 1, finir la cabane, révéler l'objectif.
 
+## Ajouts v0.37 : arbres sur la grille, sentiers et repères, nouvelles armes et générateur
+
+**Arbres** : chaque arbre occupe **une case entière** de la grille iso (calé au centre, collision = losange de la case) et la case est **bloquée pour la navigation** : survivants et monstres le contournent au lieu de s'y coincer. La grille de navigation couvre maintenant toute la carte du mode histoire.
+
+**Chapitre 1 : sentiers et repères** pour s'orienter :
+- des **sentiers** de terre battue relient le refuge à un **carrefour**, puis le carrefour à la crique, au bosquet et à l'épave (et le refuge à la plage) ; rien ne pousse dessus ;
+- **panneaux** au carrefour (Bosquet, Crique, Épave, Refuge) et près du refuge ;
+- **cairns** le long des sentiers, un **drapeau** rouge à la crique, un grand **arbre mort** à l'entrée du bosquet ;
+- des bosquets épars dans la prairie.
+
+**Armes** : 15 armes faites à la main, de niveau 1 à 5 (`tier`), dont **9 nouvelles** : lance-clous, arbalète bricolée (perforante), boomerang de plage, **fusil d'assaut** rouillé, **catapulte de fortune** (tir en cloche, explosion, fort recul), fusil de précision, fusil d'assaut militaire, **mortier rouillé** (tir en cloche, grosse explosion, très fort recul), mitrailleuse lourde.
+
+Nouveaux effets d'arme (`WeaponData`) : tir en cloche (vole par-dessus les obstacles jusqu'au point visé), explosion (dégâts de zone dégressifs), perforation, ricochets, tête chercheuse, trajectoire ondulante, fragmentation, vampire, élément au hasard, boomerang, projectiles géants, poissons.
+
+**Générateur d'armes aléatoires** (`scripts/weapon_generator.gd`), à la Borderlands : une base + un niveau + une **rareté** (commune → légendaire) + un **fabricant** (Rouille & Fils, Bricol'Tout, Précis-Mouette, Boum SARL, Coco Arms, Épave & Cie) + 0 à 3 **effets bizarres** + parfois un élément. Le nom se compose tout seul (« Fusil d'assaut rouillé à ricochets de feu ») ; les légendaires ont un nom propre. Les coffres du mode test et le butin des monstres spéciaux peuvent en contenir. Au **champ de tir** : liste déroulante de toutes les armes, bouton **Générer [G]** (niveau et rareté au choix) ; la précision compte une touche par tir.
+
 ## Structure
 
 ```
@@ -366,7 +382,10 @@ scripts/main.gd           montage du monde, sélection, caméra, HUD
 scripts/survivor.gd       survivant : contrôle, errance, tir autonome, stats
 scripts/name_generator.gd générateur de noms par syllabes multi-pays
 scripts/weapon_data.gd    ressource « arme » (dégâts, cadence, dispersion, élément…)
-scripts/projectile.gd     projectile
+scripts/projectile.gd     projectile (effets spéciaux, tir en cloche)
+scripts/explosion.gd      explosion : dégâts de zone et effet visuel
+scripts/weapon_generator.gd  armes aléatoires (rareté, fabricant, effets)
+scripts/story/landmark.gd  repères du mode histoire (panneaux, cairns, drapeau, arbre mort)
 scripts/day_night.gd      cycle jour/nuit du mode histoire (teinte, lumières, heure)
 scripts/hit_effect.gd     animation d'impact des tirs
 scripts/wave_manager.gd   vagues de monstres
@@ -429,4 +448,5 @@ godot --headless --fixed-fps 60 --path . -s tests/run_chapter1_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_range_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_daynight_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_story_dev_tests.gd
+godot --headless --fixed-fps 60 --path . -s tests/run_weapons_tests.gd
 ```
