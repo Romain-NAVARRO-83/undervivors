@@ -9,7 +9,7 @@ Moteur : **Godot 4.5** (GDScript). Le document de game design vit dans l'espace 
 1. Installer [Godot 4.5](https://godotengine.org/download) (version standard, pas .NET).
 2. Ouvrir Godot → **Importer** → choisir le fichier `project.godot` de ce dossier.
 3. Appuyer sur **F5** (ou le bouton ▶ en haut à droite).
-4. Menu titre : **Histoire** (le prologue, puis le chapitre 1), **Chapitre 1 — L'abri** (départ direct au chapitre 1) ou **Mode test** (la carte de prototypage avec toutes les mécaniques et le panneau debug F1).
+4. Menu titre : **Histoire** (le prologue, puis le chapitre 1), **Chapitre 1 — L'abri** (départ direct au chapitre 1), **Mode test** ou **Champ de tir** (essai des armes) (la carte de prototypage avec toutes les mécaniques et le panneau debug F1).
 
 ## Commandes
 
@@ -318,6 +318,19 @@ Corrections :
 - Valeurs de départ : lance-pierre **0** (pas de recul), sarbacane 0, taser 4, pistolet 10, fusil-harpon 16, fusil à pompe 26.
 - Un servant perché sur une tourelle ne bouge pas. Le recul s'affiche dans le stock d'objets.
 
+## Ajouts v0.33 : champ de tir
+
+Nouvelle entrée **Champ de tir** dans le menu titre : une petite carte pour essayer les armes.
+
+- **Toutes les armes** de `data/weapons` (une arme ajoutée y apparaît toute seule), au choix par boutons ou touches **1 à 9**, avec leurs stats (dégâts, cadence, dispersion, portée, vitesse, recul, élément).
+- **Cercle de portée** de l'arme autour du survivant.
+- **Mannequins** à PV infinis à 100, 200, 300 et 400 px, en éventail pour qu'aucun ne cache l'autre, plus un **mannequin mobile** sur rail. Chacun affiche ses dégâts reçus et ses dégâts/s.
+- **Statistiques** : tirs, touches, précision, dégâts/s sur 3 s, dégâts totaux. **R** remet à zéro (et chaque changement d'arme).
+- **Monstres** à faire apparaître (rongeur, cracheur, cogneur, feu follet), niveau 1 à 10, **inoffensifs** ou non : pour tester éléments, résistances et faiblesses. Un rocher pour les impacts sur obstacle.
+- Le survivant ne meurt pas et n'a ni faim ni soif. **Échap** : retour au menu.
+
+Correction : une balle encore en vol quand son tireur meurt ne provoque plus d'erreur (Godot 4.7).
+
 ## Structure
 
 ```
@@ -364,6 +377,7 @@ data/weapons/*.tres       armes, modifiables dans l'inspecteur de Godot
 tests/run_tests.gd        tests automatisés (mode test)
 tests/run_story_tests.gd  tests automatisés du prologue
 scripts/menu.gd           menu titre
+scripts/range/            champ de tir : carte, mannequins
 scripts/input_setup.gd    touches du jeu (partagées)
 scripts/story/            mode histoire : prologue (déroulé), carte de la plage, sol, débris, palmiers
 scripts/story/chapter1.gd chapitre 1 « L'abri » : loot, monstres, cabane (enchaîne sur le prologue)
@@ -381,4 +395,5 @@ godot --headless --path . --import
 godot --headless --fixed-fps 60 --path . -s tests/run_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_story_tests.gd
 godot --headless --fixed-fps 60 --path . -s tests/run_chapter1_tests.gd
+godot --headless --fixed-fps 60 --path . -s tests/run_range_tests.gd
 ```

@@ -1,5 +1,8 @@
 class_name Projectile
 extends Area2D
+
+## Émis au contact, avant d'appliquer les dégâts (statistiques du champ de tir).
+signal hit_body(body: Node, projectile: Projectile)
 ## Projectile tiré par un survivant. Touche les corps de la couche « ennemis ».
 
 var velocity: Vector2 = Vector2.ZERO
@@ -45,7 +48,10 @@ func _on_body_entered(body: Node) -> void:
 	if _done:
 		return   # deux corps touchés dans la même image : un seul impact
 	_done = true
+	hit_body.emit(body, self)
 	_impact(body)
+	if not is_instance_valid(shooter):
+		shooter = null   # le tireur est mort pendant que la balle volait
 	if body is Mob:
 		# Les monstres gèrent la part élémentaire (résistances, effets).
 		var killed_mob: bool = body.take_hit(damage, element, element_damage, shooter)
@@ -71,7 +77,7 @@ func _impact(body: Node) -> void:
 	var kind := HitEffect.Kind.DUST
 	if body is Mob:
 		kind = HitEffect.Kind.CREATURE
-	elif body is LootChest or body is Building:
+	elif body is LootChest or body is Building or body.is_in_group("hit_wood"):
 		kind = HitEffect.Kind.WOOD
 	HitEffect.spawn(parent, global_position, color, kind, velocity)
 

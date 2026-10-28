@@ -4,6 +4,7 @@ extends Control
 
 const STORY_SCENE := "res://scenes/story.tscn"
 const TEST_SCENE := "res://scenes/main.tscn"
+const RANGE_SCENE := "res://scenes/range.tscn"
 ## Script du mode histoire (préchargé : pas de nom de classe global à attendre).
 const Story := preload("res://scripts/story/prologue.gd")
 
@@ -39,6 +40,7 @@ func _ready() -> void:
 	_add_button(box, "Histoire", func(): _start_story(0))
 	_add_button(box, "Chapitre 1 — L'abri", func(): _start_story(1))
 	_add_button(box, "Mode test", func(): get_tree().change_scene_to_file(TEST_SCENE))
+	_add_button(box, "Champ de tir", func(): get_tree().change_scene_to_file(RANGE_SCENE))
 	_add_button(box, "Quitter", func(): get_tree().quit())
 	var hint := UIStyle.label("Mode test : la carte de prototypage, toutes les mécaniques et le panneau debug (F1).", 12, UIStyle.TEXT_DIM)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
