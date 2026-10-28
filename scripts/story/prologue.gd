@@ -69,6 +69,7 @@ var chapter: Chapter1          # chapitre en cours après le prologue (sinon nul
 var day_night: DayNight
 var _lamp: PointLight2D        # petite lumière autour du survivant dirigé, la nuit
 var _dial: DayDial
+var _top_bar: TopBar
 var dev_panel: StoryDevPanel
 var _card: SurvivorCard
 ## Accélération du temps quand aucun survivant n'est dirigé (jusqu'à l'aube).
@@ -810,7 +811,6 @@ func _update_status() -> void:
 				line += " · suit"
 		lines.append(line)
 	if chapter != null:
-		lines.append("Stock du refuge : eau %d · nourriture %d · bois %d" % [stock.get_amount("eau"), stock.get_amount("nourriture"), stock.get_amount("bois")])
 		lines.append("Tab : changer de survivant · F : l'autre vous suit / attend · Espace : lâcher")
 	_status.text = "\n".join(lines)
 
@@ -860,14 +860,10 @@ func _build_hud() -> void:
 	layer.add_child(dev_btn)
 	# Cadran du temps (en haut, au centre) et vignette du survivant dirigé
 	# (en bas à gauche)
-	_dial = DayDial.new()
-	_dial.day_night = day_night
-	_dial.anchor_left = 0.5
-	_dial.anchor_right = 0.5
-	_dial.offset_left = -60
-	_dial.offset_right = 60
-	_dial.offset_top = 6
-	layer.add_child(_dial)
+	_top_bar = TopBar.new()
+	layer.add_child(_top_bar)
+	_top_bar.setup(day_night, stock)
+	_dial = _top_bar.dial
 	_card = SurvivorCard.new()
 	_card.survivor = controlled
 	_card.anchor_top = 1.0

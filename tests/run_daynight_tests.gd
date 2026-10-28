@@ -56,6 +56,14 @@ func _plan() -> void:
 	check(_dn != null, "le mode histoire a un cycle jour/nuit")
 	check(not _dn.is_night() and not Survivor.night, "on commence de jour")
 	check(_p._dial != null and _p._dial.day_night == _dn and _p._dial.is_inside_tree(), "cadran du temps en haut de l'écran")
+	check(_p._top_bar != null and _p._dial.get_parent().get_parent() == _p._top_bar, "le cadran est dans la barre du haut, avec les stocks")
+	_p.stock.add("bois", 3)
+	_p.controlled.inventory.append(load("res://data/items/eau.tres").instance())
+	_q.append([5, func():
+		check(_p._top_bar._slots["bois"].text == "3/20", "barre du haut : bois 3/20 (%s)" % _p._top_bar._slots["bois"].text)
+		check(_p._card._bag.survivor == _p.controlled, "la vignette montre le sac du survivant")
+		_p.controlled.inventory.clear()
+		_p.stock.take("bois", 3)])
 	check(absf(DayDial.hour_angle(12.0) + PI / 2.0) < 0.001, "cadran : midi en haut")
 	check(_p._card != null and _p._card.survivor == _p.controlled, "vignette du survivant dirigé")
 	Mob.harmless = true

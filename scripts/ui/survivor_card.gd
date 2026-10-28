@@ -1,7 +1,8 @@
 class_name SurvivorCard
 extends PanelContainer
 ## Vignette du survivant dirigé, en bas à gauche (mode histoire) : portrait,
-## nom, niveau, arme, sac, et jauges de PV, d'eau, de nourriture et d'XP.
+## nom, niveau, arme, jauges de PV, d'eau, de nourriture et d'XP, et le
+## contenu de son sac (une case par place, portions restantes affichées).
 ## Sans survivant dirigé, elle le dit (et rappelle comment en reprendre un).
 
 var survivor: Survivor
@@ -9,6 +10,7 @@ var _portrait: SurvivorPortrait
 var _name: Label
 var _info: Label
 var _bars: Bars
+var _bag: Bag
 var _empty: Label
 var _row: HBoxContainer
 
@@ -34,6 +36,9 @@ func _ready() -> void:
 	_bars = Bars.new()
 	_bars.custom_minimum_size = Vector2(220, 52)
 	v.add_child(_bars)
+	_bag = Bag.new()
+	_bag.custom_minimum_size = Vector2(220, 30)
+	v.add_child(_bag)
 	_empty = UIStyle.label("", 13, UIStyle.TEXT_DIM)
 	_empty.custom_minimum_size = Vector2(300, 0)
 	_empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -51,9 +56,11 @@ func _process(_d: float) -> void:
 		_portrait.show_survivor(s)
 	_name.text = s.full_name()
 	var arme: String = s.weapon.weapon_name if s.weapon else "sans arme"
-	_info.text = "Niveau %d · %s · sac %d/%d" % [s.level, arme, s.inventory.size(), s.bag_capacity()]
+	_info.text = "Niveau %d · %s" % [s.level, arme]
 	_bars.survivor = s
 	_bars.queue_redraw()
+	_bag.survivor = s
+	_bag.queue_redraw()
 
 
 ## Jauges dessinées : PV, eau, nourriture, XP du niveau.
@@ -80,3 +87,33 @@ class Bars:
 			draw_rect(Rect2(36, y + 2, w, 8), UIStyle.BAR_BG)
 			draw_rect(Rect2(36, y + 2, w * clampf(r[1], 0.0, 1.0), 8), r[2])
 			draw_string(font, Vector2(36, y + 10), r[3], HORIZONTAL_ALIGNMENT_RIGHT, w - 2, 9, Color(1, 1, 1, 0.85))
+
+
+## Sac : une case par place (4 au niveau 1), icône de l'objet et portions
+## restantes pour l'eau et la nourriture.
+class Bag:
+	extends Control
+	var survivor: Survivor
+	const CELL := 26.0
+	const GAP := 3.0
+
+	func _draw() -> void:
+		if not is_instance_valid(survivor):
+			return
+		var font := get_theme_default_font()
+		var cap := survivor.bag_capacity()
+		var x := 0.0
+		draw_string(font, Vector2(0, 18), "Sac", HORIZONTAL_ALIGNMENT_LEFT, 36, 10, UIStyle.TEXT_DIM)
+		x = 36.0
+		for i in cap:
+			var r := Rect2(Vector2(x, 2), Vector2(CELL, CELL))
+			if r.end.x > size.x + 60.0:
+				break
+			draw_rect(r, UIStyle.BAR_BG)
+			draw_rect(r, UIStyle.BORDER, false, 1.0)
+			if i < survivor.inventory.size():
+				var it: Resource = survivor.inventory[i]
+				ItemIcon.draw_item(self, it, r.get_center(), 1.0)
+				if it is ConsumableData and it.amount > 1:
+					draw_string(font, r.end - Vector2(9, 2), str(it.remaining()), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 1, 1, 0.9))
+			x += CELL + GAP

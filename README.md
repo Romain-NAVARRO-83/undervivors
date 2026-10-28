@@ -374,6 +374,11 @@ Nouveaux effets d'arme (`WeaponData`) : tir en cloche (vole par-dessus les obsta
 
 **Générateur d'armes aléatoires** (`scripts/weapon_generator.gd`), à la Borderlands : une base + un niveau + une **rareté** (commune → légendaire) + un **fabricant** (Rouille & Fils, Bricol'Tout, Précis-Mouette, Boum SARL, Coco Arms, Épave & Cie) + 0 à 3 **effets bizarres** + parfois un élément. Le nom se compose tout seul (« Fusil d'assaut rouillé à ricochets de feu ») ; les légendaires ont un nom propre. Les coffres du mode test et le butin des monstres spéciaux peuvent en contenir. Au **champ de tir** : liste déroulante de toutes les armes, bouton **Générer [G]** (niveau et rareté au choix) ; la précision compte une touche par tir.
 
+## Ajouts v0.38 : barre du haut (stocks et heure), sac dans la vignette
+
+- **Barre du haut** (mode histoire) : le cadran du temps au centre, entouré des **stocks du refuge** (eau, nourriture, bois) avec leur capacité ; un stock vide passe au rouge, un stock plein au vert. Les stocks quittent le panneau de gauche.
+- **Vignette du survivant dirigé** : son **sac** s'affiche, une case par place, avec l'icône de chaque objet et les portions restantes de l'eau et de la nourriture.
+
 ## Structure
 
 ```
@@ -420,6 +425,8 @@ scripts/item_pickup.gd    objet au sol, ramassage
 scripts/ui/loot_panel.gd  panneau du stock d'objets
 scripts/ui/debug_panel.gd panneau debug (F1)
 scripts/ui/day_dial.gd    cadran du temps (mode histoire)
+scripts/ui/top_bar.gd     barre du haut : stocks du refuge et cadran
+scripts/ui/item_icon.gd   icônes d'objets dessinées en code
 scripts/ui/story_dev_panel.gd  panneau développeur du mode histoire (F1)
 scripts/ui/survivor_card.gd  vignette du survivant dirigé (mode histoire)
 scripts/ui/               interface : panneau de gestion, tuiles, vignettes, styles
